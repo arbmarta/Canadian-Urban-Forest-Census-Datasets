@@ -2,10 +2,10 @@
 This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).
 
 ## Urban Census Subdivisions 
-File Name: urban_csds.gpkg (layer = 'urban_csds')
+**File Name:** urban_csds.gpkg (layer = 'urban_csds')
 
-Source File: Census Subdivision shapefile (2021 Census Boundary Files)
-Source Format: Cartographic Boundary File (CBF)
+**Source File:** Census Subdivision shapefile (2021 Census Boundary Files) \
+**Source Format:** Cartographic Boundary File (CBF)
 
 This geopackage includes polygons of the 343 census subdivisions that are not Indigenous communities (i.e., First Nations reserves) and meet the definition of urban used by Statistics Canada:
 
