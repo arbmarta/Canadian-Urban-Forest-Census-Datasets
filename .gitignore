@@ -1,0 +1,3 @@
+# Ignore these files:
+.venv
+Datasets/census subdivisions 2021
