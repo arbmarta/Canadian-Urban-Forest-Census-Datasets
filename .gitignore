@@ -1,3 +1,4 @@
 # Ignore these files:
 .venv
+.idea
 Datasets/Inputs/census subdivisions 2021
