@@ -4,6 +4,8 @@ This repository houses files used in the analysis of the Canadian Urban Forest C
 ## Urban Census Subdivisions 
 **File Name:** urban_csds.gpkg (layer = 'urban_csds')
 
+**Relevant Code:** urban_csds.py
+
 **Source File:** Census Subdivision shapefile (2021 Census Boundary Files) \
 **Source Format:** Cartographic Boundary File (CBF)
 
