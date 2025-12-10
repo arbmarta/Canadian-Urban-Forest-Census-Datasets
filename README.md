@@ -1,7 +1,7 @@
 # Description
 This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).
 
-# Datasets
+# Output Datasets
 
 | File Name | File Type | Relevant Code | Source File | Source Format | Description |
 |-----------|-----------|----------------|-------------|----------------|-------------|
