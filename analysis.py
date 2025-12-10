@@ -37,6 +37,17 @@ csd_urban = csd_urban[~rocher_cond].copy()
 
 # Drop the merge indicator column (we still have merge_cond/name_cond variables for reporting)
 csd_urban.drop(columns=['_merge'], inplace=True)
+
+# Check for duplicates before removing
+duplicate_count = csd_urban['CSDUID'].duplicated().sum()
+if duplicate_count > 0:
+    print(f"\n*** WARNING: Found {duplicate_count} duplicate CSDUIDs ***")
+    duplicate_csds = csd_urban[csd_urban['CSDUID'].duplicated(keep=False)][['CSDUID', 'CSDNAME']].sort_values('CSDUID')
+    print(duplicate_csds.to_string(index=False))
+else:
+    print("\nNo duplicate CSDUIDs found.")
+
+# Drop the duplicates
 csd_urban = csd_urban.drop_duplicates(subset='CSDUID')
 
 #endregion
@@ -69,58 +80,99 @@ print("\n" + "="*70 + "\n")
 
 #endregion
 
-## --------------------------------------- Merge Black Diamond and Turner Valley ---------------------------------------
-#region
+## --------------------------------- Merge Black Diamond, Turner Valley & Lloydminster ---------------------------------
+# region
 
+print("\n" + "=" * 70)
+print(" Merging Multi-Part CSDs")
+print("=" * 70)
+
+# ===== BLACK DIAMOND + TURNER VALLEY =====
 dt_cond = csd_urban['CSDNAME'].str.contains("black diamond", case=False, na=False) | \
           csd_urban['CSDNAME'].str.contains("turner valley", case=False, na=False)
 dt_rows = csd_urban.loc[dt_cond, ['CSDUID', 'CSDNAME', 'geometry']]
 
-print("Black Diamond + Turner Valley source rows:")
-print(pretty(dt_rows[['CSDUID','CSDNAME']]))
+print("\nBlack Diamond + Turner Valley source rows:")
+print(pretty(dt_rows[['CSDUID', 'CSDNAME']]))
 
-if len(dt_rows):
+if len(dt_rows) > 0:
+    # Get Turner Valley CSDUID (4806009)
+    turner_valley_csduid = \
+    dt_rows[dt_rows['CSDNAME'].str.contains("turner valley", case=False, na=False)]['CSDUID'].iloc[0]
+
+    # Create merged geometry
     dt_geom_union = unary_union(dt_rows.geometry.values)
+
+    # Visualize the merge
     dt_merged_gdf = gpd.GeoDataFrame(
-        {'name': ['Diamond+Turner'], 'geometry': [dt_geom_union]},
+        {'name': ['Diamond Valley'], 'geometry': [dt_geom_union]},
         crs=csd_urban.crs
     )
 
     fig, ax = plt.subplots(figsize=(8, 8))
     dt_merged_gdf.to_crs(epsg=3857).plot(ax=ax, edgecolor='red', facecolor='none', linewidth=2)
     ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
-    ax.set_title('Black Diamond + Turner Valley (merged)')
+    ax.set_title('Diamond Valley (Black Diamond + Turner Valley merged)')
     ax.set_axis_off()
     plt.show()
 
-print("\n" + "="*70 + "\n")
+    # Actually merge in the dataset
+    merged_dt = csd_urban[dt_cond].iloc[0].copy()
+    merged_dt['geometry'] = dt_geom_union
+    merged_dt['CSDNAME'] = 'Diamond Valley'
+    merged_dt['CSDUID'] = turner_valley_csduid
 
-#endregion
+    # Remove original rows and add merged row
+    csd_urban = csd_urban[~dt_cond].copy()
+    csd_urban = pd.concat([csd_urban, gpd.GeoDataFrame([merged_dt], crs=csd_urban.crs)], ignore_index=True)
 
-## --------------------------------------------- Merge Lloydminster Parts ----------------------------------------------
-#region
+    print(f"✓ Merged into Diamond Valley (CSDUID: {turner_valley_csduid})")
 
+print("\n" + "-" * 70)
+
+# ===== LLOYDMINSTER =====
 lloyd_cond = csd_urban['CSDNAME'].str.contains("lloydminster", case=False, na=False)
 lloyd_rows = csd_urban.loc[lloyd_cond, ['CSDUID', 'CSDNAME', 'geometry']]
 
-print("Lloydminster source rows:")
-print(pretty(lloyd_rows[['CSDUID','CSDNAME']]))
+print("\nLloydminster source rows:")
+print(pretty(lloyd_rows[['CSDUID', 'CSDNAME']]))
 
-if len(lloyd_rows):
+if len(lloyd_rows) > 0:
+    # Get Alberta Lloydminster CSDUID (4717029)
+    alberta_lloyd_csduid = lloyd_rows[lloyd_rows['CSDUID'].astype(str).str.startswith('47')]['CSDUID'].iloc[0]
+
+    # Create merged geometry
     lloyd_geom_union = unary_union(lloyd_rows.geometry.values)
+
+    # Visualize the merge
     lloyd_merged_gdf = gpd.GeoDataFrame(
-        {'name': ['Lloydminster (merged)'], 'geometry': [lloyd_geom_union]},
+        {'name': ['Lloydminster'], 'geometry': [lloyd_geom_union]},
         crs=csd_urban.crs
     )
 
     fig, ax = plt.subplots(figsize=(8, 8))
     lloyd_merged_gdf.to_crs(epsg=3857).plot(ax=ax, edgecolor='blue', facecolor='none', linewidth=2)
     ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
-    ax.set_title('Lloydminster (merged)')
+    ax.set_title('Lloydminster (AB + SK merged)')
     ax.set_axis_off()
     plt.show()
 
-#endregion
+    # Actually merge in the dataset
+    merged_lloyd = csd_urban[lloyd_cond].iloc[0].copy()
+    merged_lloyd['geometry'] = lloyd_geom_union
+    merged_lloyd['CSDNAME'] = 'Lloydminster'
+    merged_lloyd['CSDUID'] = alberta_lloyd_csduid
+
+    # Remove original rows and add merged row
+    csd_urban = csd_urban[~lloyd_cond].copy()
+    csd_urban = pd.concat([csd_urban, gpd.GeoDataFrame([merged_lloyd], crs=csd_urban.crs)], ignore_index=True)
+
+    print(f"✓ Merged into Lloydminster (CSDUID: {alberta_lloyd_csduid})")
+
+print(f"\nTotal CSDs after merging: {len(csd_urban)}")
+print("\n" + "=" * 70 + "\n")
+
+# endregion
 
 ## -------------------------------------------- Calculate Land Area of CSDs --------------------------------------------
 #region
@@ -350,24 +402,24 @@ csd_urban_shp = csd_urban_shp.rename(columns={
 })
 
 # 1. Save polygons (both formats)
-urban_shp_path = 'Datasets/Outputs/urban csds/urban csds.shp'
+urban_shp_path = 'Datasets/Outputs/urban csds/urban_csds.shp'
 csd_urban_shp.to_file(urban_shp_path, driver="ESRI Shapefile")
 print(f"Saved polygons (shapefile) to: {urban_shp_path}")
 
-urban_gpkg_path = 'Datasets/Outputs/urban csds/urban csds.gpkg'
+urban_gpkg_path = 'Datasets/Outputs/urban csds/urban_csds.gpkg'
 csd_urban.to_file(urban_gpkg_path, driver="GPKG")
 print(f"Saved polygons (geopackage) to: {urban_gpkg_path}")
 
 # 2. Save centroids (both formats)
 centroids_shp = csd_urban_shp.copy()
 centroids_shp["geometry"] = centroids_shp.geometry.centroid
-centroid_shp_path = 'Datasets/Outputs/urban csd centroids/urban csd centroids.shp'
+centroid_shp_path = 'Datasets/Outputs/urban csd centroids/urban_csd_centroids.shp'
 centroids_shp.to_file(centroid_shp_path, driver="ESRI Shapefile")
 print(f"Saved centroids (shapefile) to: {centroid_shp_path}")
 
 centroids_gpkg = csd_urban.copy()
 centroids_gpkg["geometry"] = centroids_gpkg.geometry.centroid
-centroid_gpkg_path = 'Datasets/Outputs/urban csd centroids/urban csd centroids.gpkg'
+centroid_gpkg_path = 'Datasets/Outputs/urban csd centroids/urban_csd_centroids.gpkg'
 centroids_gpkg.to_file(centroid_gpkg_path, driver="GPKG")
 print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 
