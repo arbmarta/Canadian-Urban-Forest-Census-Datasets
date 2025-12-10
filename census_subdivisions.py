@@ -425,7 +425,7 @@ print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 
 # 3. Save attribute table as CSV (with full column names)
 csv_data = csd_urban[['CSDUID', 'CSDNAME', 'area_km2', 'assigned_ecozone', 'dominant_ecozone', 'coverage_pct']].copy()
-csv_path = 'Datasets/Outputs/urban_csds_attributes.csv'
+csv_path = 'Datasets/Outputs/urban_csds/urban_csds_attributes.csv'
 csv_data.to_csv(csv_path, index=False)
 print(f"Saved attribute table to: {csv_path}")
 
