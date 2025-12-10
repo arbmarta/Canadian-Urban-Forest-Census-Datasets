@@ -40,6 +40,6 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 
 | File Name (path) | File Type | Relevant Code | Source Format | Description |
 |------------------|-----------|---------------|----------------|-------------|
-| `Datasets/Outputs/roads/intersecting_roads.gpkg` | .gpkg | `roads.py` | Polylines | Road features that intersect any urban CSD, produced via spatial filtering. |
-| `Datasets/Outputs/roads/clipped_roads.gpkg` | .gpkg | `roads.py` | Polylines | Road segments clipped to individual urban CSD boundaries (used to compute lengths). |
-| `Datasets/Outputs/roads/buffered_roads.gpkg` | .gpkg | `roads.py` | Polygons | 20 m buffered road segments per CSD prior to dissolving overlaps. |
+| **intersecting_roads** | .gpkg | `roads.py` | Polylines | Road features that intersect any urban CSD, produced via spatial filtering. |
+| **clipped_roads** | .gpkg | `roads.py` | Polylines | Road segments clipped to individual urban CSD boundaries (used to compute lengths). |
+| **buffered_roads** | .gpkg | `roads.py` | Polygons | 20 m buffered road segments per CSD prior to dissolving overlaps. |
