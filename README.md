@@ -9,7 +9,8 @@ This repository houses files used in the analysis of the Canadian Urban Forest C
 | **urban_csd_centroids** | .shp; .gpkg | `analysis.py` | `urban_csds.gpkg` | Points | Centroids generated from the final urban census subdivision polygons. |
 | **urban_csds_attributes** | .csv | `analysis.py` | `urban_csds.gpkg` | Tabular | Attribute table containing CSDUID, CSDNAME, land area, assigned ecozone, dominance status, and percentage coverage. |
 | **clipped_roads** | .shp; .gpkg | `roads.py` | 2024 Intercensal Road Network File | Polylines | Road network features clipped to the 343 urban census subdivision boundaries. |
-| **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polylines | Buffered representations of clipped road features. |
+| **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Final dissolved buffer polygons representing buffered road segments within each urban census subdivision. |
+| **road_lengths_by_csd** | .csv | `roads.py` | `clipped_roads.gpkg` | Tabular | Summarized road lengths (km) for each urban census subdivision, including CSDUID and CSDNAME. |
 
 # Determining Urban Areas
 To determine urban municipalities, we use census subdivisions, which is Statistics Canada's dataset of municipal boundaries. We selected census subdivisions that meet the definition of urban used by Statistics Canada:
@@ -31,3 +32,11 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **eligible_csduid** | .csv | `analysis.py` | CSV | Table listing eligible CSDUIDs that meet the criteria for inclusion as urban census subdivisions. |
 | **ecozones** | .shp | `analysis.py` | Polygons | National ecozone boundary file used for intersecting and assigning each CSD to an ecozone. |
 | **road_network_2024** | .shp; .gpkg | `roads.py` | Polylines | Intercensal 2024 road network used for clipping road segments to urban census subdivision boundaries. |
+
+# Temporary Outputs  
+*(Intermediate datasets created for efficiency or reuse, but not final products)*
+
+| File Name (path) | File Type | Relevant Code | Source Format | Description |
+|------------------|-----------|---------------|----------------|-------------|
+| `Datasets/Outputs/roads/intersecting_roads.gpkg` | .gpkg | `roads.py` | Polylines | Roads that intersect any urban CSD, produced via spatial filtering. |
+| `Datasets/Outputs/roads/buffered_roads.gpkg` | .gpkg | `roads.py` | Polygons | 20 m buffered road segments per CSD before dissolving overlaps. |
