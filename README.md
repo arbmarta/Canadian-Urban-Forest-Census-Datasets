@@ -11,49 +11,14 @@ This repository houses files used in the analysis of the Canadian Urban Forest C
 | **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polylines | Buffered representations of the clipped road network. |
 
 
-## Urban Census Subdivisions 
-**File Name:** urban_csds (.shp; .gpkg)
-
-**Relevant Code:** analysis.py
-
-**Source File:** Census Subdivision shapefile (2021 Census Boundary Files) \
-**Source Format:** Cartographic Boundary File (CBF)
-
-This geopackage includes polygons of the 343 census subdivisions that are not Indigenous communities (i.e., First Nations reserves) and meet the definition of urban used by Statistics Canada:
+## Determining Urban Areas
+To determine urban municipalities, we use census subdivisions, which is Statistics Canada's dataset of municipal boundaries. We selected census subdivisions that meet the definition of urban used by Statistics Canada:
 
 > Urban areas are those continuously built-up areas having a minimum population concentration of 1,000 persons and a population density of at least 400 persons per square kilometer based on the previous census. (Statistical Classifications: Urban and rural areas - 'Urban' versus 'rural' variant)
 
-Additional edits were performed after excluding Indigenous and non-urban census subdivisions:
+We then excluded Indigenous Communities because they operate under different governance structures.
+
+Additional edits were performed after excluding non-urban and Indigenous census subdivisions:
 1. The two Lloydminster parts (Alberta and Saskatchewan) were merged as it represents one inter-provincial city
 2. Turner Valley and Black Diamond, Alberta were merged in keeping with their amalgamation
 3. Petit-Rocher, New Brunswick was removed as its new land area results in a population density below the definition of urban used by Statistics Canada.
-
-## Urban Census Subdivision Centerpoints
-**File Name:** urban_csd_centerpoints (.shp; .gpkg)
-
-**Relevant Code:** analysis.py
-
-**Source File:** urban_csds.gpkg\
-**Source Format:** polygons
-
-This geopackage includes centerpoints of the 343 urban census subdivisions.
-
-## Road Network File
-**File Name:** clipped_roads (.shp; .gpkg)
-
-**Relevant Code:** roads.py
-
-**Source File:** Intercensal - Road network files (2024 road network file) \
-**Source Format:** polylines
-
-This geopackage includes polylines of roads within the 343 urban census subdivisions, clipped to the boundaries of the urban census subdivisions.
-
-## Road Buffer File
-**File Name:** road_buffers (.shp; .gpkg)
-
-**Relevant Code:** roads.py
-
-**Source File:** clipped_roads.gpkg\
-**Source Format:** polylines
-
-This geopackage includes polylines of roads within the 343 urban census subdivisions, clipped to the boundaries of the urban census subdivisions.
