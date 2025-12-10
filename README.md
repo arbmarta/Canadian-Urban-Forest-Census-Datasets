@@ -1,11 +1,11 @@
 # Description
 This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).
 
-## Dataset Inputs
-### Urban Census Subdivisions 
-**File Name:** urban_csds.gpkg (layer = 'urban_csds')
+# Datasets
+## Urban Census Subdivisions 
+**File Name:** urban_csds.gpkg
 
-**Relevant Code:** urban_csds.py
+**Relevant Code:** analysis.py
 
 **Source File:** Census Subdivision shapefile (2021 Census Boundary Files) \
 **Source Format:** Cartographic Boundary File (CBF)
@@ -18,3 +18,14 @@ Additional edits were performed after excluding Indigenous and non-urban census 
 1. The two Lloydminster parts (Alberta and Saskatchewan) were merged as it represents one inter-provincial city
 2. Turner Valley and Black Diamond, Alberta were merged in keeping with their amalgamation
 3. Petit-Rocher, New Brunswick was removed as its new land area results in a population density below the definition of urban used by Statistics Canada.
+
+## Road Network File
+**File Name:** clipped_roads.gpkg
+
+**Relevant Code:** analysis.py
+
+**Source File:** Intercensal - Road network files (2024 road network file) \
+**Source Format:** polylines
+
+This geopackage includes polylines of roads within the 343 urban census subdivisions, clipped to the boundaries of the urban census subdivisions.
+
