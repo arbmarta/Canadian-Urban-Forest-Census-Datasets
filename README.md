@@ -91,3 +91,28 @@ Urban polygons, centroids, and urban attribute tables used across the project.
 
 **Primary outputs:**  
 Clipped roads, buffered roads, dissolved road buffers, and per-CSD road-length summaries.
+
+## `canopy_metrics.js`
+`canopy_metrics.js` (Google Earth Engine script) calculates canopy coverage metrics for spatial units derived from this project. The script is flexible and can use **either the final `urban_csds` polygons** or the **`road_buffers` polygons** as its input layer. When run on `urban_csds`, the script computes canopy statistics for entire municipal areas. When run on `road_buffers`, it instead analyzes canopy coverage within road-adjacent buffer zones. The choice of input directly influences the resulting area values and canopy percentages.
+
+**High-level responsibilities:**
+- Load the selected input layer (`urban_csds` or `road_buffers`) from Google Earth Engine assets.  
+- Load and mosaic the Meta 1-m Canopy Height Model (`CanopyHeight`) dataset.  
+- Create a binary canopy mask where vegetation ≥ 2 m is classified as canopy.  
+- For each spatial unit (CSD polygon or buffer polygon), compute:  
+  - Total area (km²),  
+  - Total canopy area (km²),  
+  - Canopy proportion (%) based on 1-m pixel area.  
+- Append canopy metrics as new attributes to each feature.  
+- Display optional QA layers (canopy mask, polygons).  
+- Export a table of canopy metrics (`ID`, `total_area_km2`, `canopy_area_km2`, `canopy_proportion`) as a CSV to Google Drive.
+
+**Primary inputs:**  
+- **Option 1:** `projects/heroic-glyph-383701/assets/urban_csds`  
+  *(computes canopy metrics for entire urban municipalities)*  
+- **Option 2:** `projects/heroic-glyph-383701/assets/road_buffers`  
+  *(computes canopy metrics within 20-m dissolved road buffer zones)*  
+- Canopy height model: `projects/meta-forest-monitoring-okw37/assets/CanopyHeight`
+
+**Primary outputs:**  
+A FeatureCollection enriched with canopy attributes, and an exported CSV summarizing canopy area and canopy percentage for each polygon (CSD or buffer, depending on input).
