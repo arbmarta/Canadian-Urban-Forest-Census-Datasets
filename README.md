@@ -23,9 +23,9 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 
 | File Name | File Type | Relevant Code | Source Format | Description |
 |-----------|-----------|----------------|----------------|-------------|
-| **census_subdivisions_2021** | .shp | `analysis.py` | Polygons (CBF – 2021 Census Boundary File) | Full national Census Subdivision boundary dataset used for identifying and processing urban CSDs. |
-| **eligible_csduid** | .csv | `analysis.py` | CSV | Table listing CSDUIDs that meet Statistics Canada’s criteria for inclusion as urban census subdivisions. |
-| **ecozones** | .shp | `analysis.py` | Polygons | National ecozone boundary file used for intersecting and assigning each CSD to an ecozone. Must contain `ZONE_NAME`. |
+| **census_subdivisions_2021** | .shp | `census_subdivisions.py` | Polygons (CBF – 2021 Census Boundary File) | Full national Census Subdivision boundary dataset used for identifying and processing urban CSDs. |
+| **eligible_csduid** | .csv | `census_subdivisions.py` | CSV | Table listing CSDUIDs that meet Statistics Canada’s criteria for inclusion as urban census subdivisions. |
+| **ecozones** | .shp | `census_subdivisions.py` | Polygons | National ecozone boundary file used for intersecting and assigning each CSD to an ecozone. Must contain `ZONE_NAME`. |
 | **roads** | .shp; .gpkg | `roads.py` | Polylines | Intercensal 2024 road network used for clipping and buffering road segments. |
 | **meta_canopy_height_model** | EE Asset | `canopy_metrics.js` | Raster (1 m resolution) | Meta 1-m Canopy Height Model used to generate canopy ≥ 2 m binary layers and calculate canopy coverage metrics. |
 
@@ -42,9 +42,9 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 
 | File Name | File Type | Relevant Code | Source File | Source Format | Description |
 |-----------|-----------|----------------|-------------|----------------|-------------|
-| **urban_csds** | .shp; .gpkg | `analysis.py` | Census Subdivision Boundary File (2021) | Polygons | Final processed polygons representing 343 non-Indigenous urban census subdivisions. |
-| **urban_csd_centroids** | .shp; .gpkg | `analysis.py` | `urban_csds.gpkg` | Points | Centroids generated from the final urban census subdivision polygons. |
-| **urban_csds_attributes** | .csv | `analysis.py` | `urban_csds.gpkg` | Tabular | Attribute table containing CSDUID, CSDNAME, land area, assigned ecozone, dominance status, and percent ecozone coverage. |
+| **urban_csds** | .shp; .gpkg | `census_subdivisions.py` | Census Subdivision Boundary File (2021) | Polygons | Final processed polygons representing 343 non-Indigenous urban census subdivisions. |
+| **urban_csd_centroids** | .shp; .gpkg | `census_subdivisions.py` | `urban_csds.gpkg` | Points | Centroids generated from the final urban census subdivision polygons. |
+| **urban_csds_attributes** | .csv | `census_subdivisions.py` | `urban_csds.gpkg` | Tabular | Attribute table containing CSDUID, CSDNAME, land area, assigned ecozone, dominance status, and percent ecozone coverage. |
 | **clipped_roads** | .shp; .gpkg | `roads.py` | 2024 Intercensal Road Network File | Polylines | Road network features clipped to urban census subdivision boundaries. |
 | **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Final dissolved 20 m buffer polygons representing buffered road segments within each urban census subdivision. |
 | **road_lengths_by_csd** | .csv | `roads.py` | `clipped_roads.gpkg` | Tabular | Summarized road lengths (km) for each urban census subdivision. |
@@ -52,9 +52,9 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **canopy_metrics_road_buffers** | .csv | `canopy_metrics.js` | `road_buffers` | Tabular | Canopy area (km²) and canopy percentage within dissolved 20 m road-buffer zones for each CSD. |
 
 # Scripts
-## `analysis.py`
+## `census_subdivisions.py`
 
-`analysis.py` prepares the complete set of urban Census Subdivisions (CSDs) used in the Canadian Urban Forest Census. It filters the national CSD boundary file using Statistics Canada’s urban criteria, applies project-specific adjustments, computes land area, assigns each CSD to an ecozone, and generates the final spatial and tabular datasets used in subsequent analyses.
+`census_subdivisions.py` prepares the complete set of urban Census Subdivisions (CSDs) used in the Canadian Urban Forest Census. It filters the national CSD boundary file using Statistics Canada’s urban criteria, applies project-specific adjustments, computes land area, assigns each CSD to an ecozone, and generates the final spatial and tabular datasets used in subsequent analyses.
 
 **High-level responsibilities:**
 - Load the 2021 Census Subdivision boundary file, the list of eligible CSDUIDs, and the national ecozone boundaries.  
