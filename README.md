@@ -3,7 +3,7 @@ This repository houses files used in the analysis of the Canadian Urban Forest C
 
 # Datasets
 ## Urban Census Subdivisions 
-**File Name:** urban_csds.gpkg
+**File Name:** urban_csds (.shp; .gpkg)
 
 **Relevant Code:** analysis.py
 
@@ -19,13 +19,32 @@ Additional edits were performed after excluding Indigenous and non-urban census 
 2. Turner Valley and Black Diamond, Alberta were merged in keeping with their amalgamation
 3. Petit-Rocher, New Brunswick was removed as its new land area results in a population density below the definition of urban used by Statistics Canada.
 
-## Road Network File
-**File Name:** clipped_roads.gpkg
+## Urban Census Subdivision Centerpoints
+**File Name:** urban_csd_centerpoints (.shp; .gpkg)
 
 **Relevant Code:** analysis.py
+
+**Source File:** urban_csds.gpkg\
+**Source Format:** polygons
+
+This geopackage includes centerpoints of the 343 urban census subdivisions.
+
+## Road Network File
+**File Name:** clipped_roads (.shp; .gpkg)
+
+**Relevant Code:** roads.py
 
 **Source File:** Intercensal - Road network files (2024 road network file) \
 **Source Format:** polylines
 
 This geopackage includes polylines of roads within the 343 urban census subdivisions, clipped to the boundaries of the urban census subdivisions.
 
+## Road Buffer File
+**File Name:** road_buffers (.shp; .gpkg)
+
+**Relevant Code:** roads.py
+
+**Source File:** clipped_roads.gpkg\
+**Source Format:** polylines
+
+This geopackage includes polylines of roads within the 343 urban census subdivisions, clipped to the boundaries of the urban census subdivisions.
