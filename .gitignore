@@ -1,6 +1,6 @@
 # Ignore these files:
 .venv
 .idea
-Datasets/Inputs/census subdivisions 2021
+Datasets/Inputs/census_subdivisions_2021
 Datasets/Inputs/roads
 Datasets/Outputs/roads

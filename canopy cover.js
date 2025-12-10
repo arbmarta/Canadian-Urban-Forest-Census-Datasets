@@ -72,7 +72,7 @@ print('Number of CSDs processed:', censusWithCanopy.size());
 // Export results to CSV
 Export.table.toDrive({
   collection: censusWithCanopy,
-  description: 'CSD_Canopy_Metrics',
+  description: 'canopy_cover_csd',
   fileFormat: 'CSV',
   selectors: ['CSDUID', 'total_area_km2', 'canopy_area_km2', 'canopy_proportion']
 });

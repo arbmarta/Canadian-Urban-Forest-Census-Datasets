@@ -7,8 +7,8 @@ import contextily as ctx
 ## ------------------------------------------------ Load & Prepare Data ------------------------------------------------
 #region
 
-csd = gpd.read_file('Datasets/Inputs/census subdivisions 2021/census subdivisions 2021.shp')
-eligible_csduid = pd.read_csv('Datasets/Inputs/eligible csduid.csv')
+csd = gpd.read_file('Datasets/Inputs/census_subdivisions_2021/census_subdivisions_2021.shp')
+eligible_csduid = pd.read_csv('Datasets/Inputs/eligible_csduid.csv')
 ecozone = gpd.read_file('Datasets/Inputs/ecozone_shp/ecozones.shp')
 
 csd['CSDUID'] = pd.to_numeric(csd['CSDUID'], errors='coerce')
@@ -402,24 +402,24 @@ csd_urban_shp = csd_urban_shp.rename(columns={
 })
 
 # 1. Save polygons (both formats)
-urban_shp_path = 'Datasets/Outputs/urban csds/urban_csds.shp'
+urban_shp_path = 'Datasets/Outputs/urban_csds/urban_csds.shp'
 csd_urban_shp.to_file(urban_shp_path, driver="ESRI Shapefile")
 print(f"Saved polygons (shapefile) to: {urban_shp_path}")
 
-urban_gpkg_path = 'Datasets/Outputs/urban csds/urban_csds.gpkg'
+urban_gpkg_path = 'Datasets/Outputs/urban_csds/urban_csds.gpkg'
 csd_urban.to_file(urban_gpkg_path, driver="GPKG")
 print(f"Saved polygons (geopackage) to: {urban_gpkg_path}")
 
 # 2. Save centroids (both formats)
 centroids_shp = csd_urban_shp.copy()
 centroids_shp["geometry"] = centroids_shp.geometry.centroid
-centroid_shp_path = 'Datasets/Outputs/urban csd centroids/urban_csd_centroids.shp'
+centroid_shp_path = 'Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.shp'
 centroids_shp.to_file(centroid_shp_path, driver="ESRI Shapefile")
 print(f"Saved centroids (shapefile) to: {centroid_shp_path}")
 
 centroids_gpkg = csd_urban.copy()
 centroids_gpkg["geometry"] = centroids_gpkg.geometry.centroid
-centroid_gpkg_path = 'Datasets/Outputs/urban csd centroids/urban_csd_centroids.gpkg'
+centroid_gpkg_path = 'Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg'
 centroids_gpkg.to_file(centroid_gpkg_path, driver="GPKG")
 print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 

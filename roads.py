@@ -6,7 +6,7 @@ import pandas as pd
 
 print("Loading data...")
 roads = gpd.read_file('Datasets/Inputs/roads/roads.shp')
-csd = gpd.read_file('Datasets/Outputs/urban csds/urban_csds.gpkg')
+csd = gpd.read_file('Datasets/Outputs/urban_csds/urban_csds.gpkg')
 
 print(f"Original roads: {len(roads)}")
 print(f"Roads CRS: {roads.crs}")
