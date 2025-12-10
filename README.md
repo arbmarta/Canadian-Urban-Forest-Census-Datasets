@@ -1,8 +1,7 @@
 # Description
 This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).  
 
-The project integrates municipal boundary data, ecozone classifications, and national road network datasets to create a harmonized geospatial framework for assessing urban forest conditions across Canada.  
-It includes both final analytical outputs and intermediate processing layers that support reproducibility, spatial validation, and transparent methodological documentation. Together, these datasets allow for consistent comparison of urban areas, detailed spatial attribution of ecological context, and robust quantification of road infrastructure patterns that influence urban forest structure and management needs. The repository is designed so that each stage of the workflow—from raw inputs to processed analytical products—can be traced, audited, and re-run entirely from source files.
+The project integrates municipal boundary data, ecozone classifications, and national road network datasets to create a harmonized geospatial framework for assessing urban forest conditions across Canada. It includes both final analytical outputs and intermediate processing layers that support reproducibility, spatial validation, and transparent methodological documentation. Together, these datasets allow for consistent comparison of urban areas, detailed spatial attribution of ecological context, and robust quantification of road infrastructure patterns that influence urban forest structure and management needs. The repository is designed so that each stage of the workflow—from raw inputs to processed analytical products—can be traced, audited, and re-run entirely from source files.
 
 # Output Datasets
 
