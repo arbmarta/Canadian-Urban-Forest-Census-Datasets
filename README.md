@@ -1,7 +1,9 @@
 # Description
-This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).  
+This repository houses all datasets and processing scripts used in the Canadian Urban Forest Census (2025). The project integrates municipal boundaries, national roadway infrastructure, ecozone classifications, and high-resolution canopy data to build a comprehensive geospatial framework for analyzing urban forest conditions across Canada. 
 
-The project integrates municipal boundary data, ecozone classifications, and national road network datasets to create a harmonized geospatial framework for assessing urban forest conditions across Canada. It includes both final analytical outputs and intermediate processing layers that support reproducibility, spatial validation, and transparent methodological documentation. Together, these datasets allow for consistent comparison of urban areas, detailed spatial attribution of ecological context, and robust quantification of road infrastructure patterns that influence urban forest structure and management needs. The repository is designed so that each stage of the workflow—from raw inputs to processed analytical products—can be traced, audited, and re-run entirely from source files.
+The workflow begins by identifying and preparing all qualifying urban Census Subdivisions (CSDs), applying Statistics Canada’s urban criteria along with essential administrative edits. These standardized urban polygons serve as the foundation for additional spatial products, including centroid point layers, ecozone assignments, clipped road networks, and dissolved 20-metre road-buffer geometries.
+
+Using high-resolution Meta 1-m Canopy Height data, the project then derives canopy metrics for each urban CSD as well as for road-adjacent buffer zones, enabling assessment of canopy distribution both across municipalities and within transportation corridors. The repository captures every stage of this workflow—from raw inputs to final analytical outputs—to ensure complete transparency, reproducibility, and scalability for future urban forest assessments.
 
 # Determining Urban Areas
 To determine urban municipalities, we use census subdivisions, which is Statistics Canada's dataset of municipal boundaries. We selected census subdivisions that meet the definition of urban used by Statistics Canada:
