@@ -45,3 +45,49 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **clipped_roads** | .shp; .gpkg | `roads.py` | `roads.shp` | Polylines | Road network features clipped to the 343 urban census subdivision boundaries. |
 | **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Final dissolved road-buffer polygons representing 20 m buffered road segments within each urban census subdivision. |
 | **road_lengths_by_csd** | .csv | `roads.py` | `clipped_roads.gpkg` | Tabular | Summarized road lengths (km) for each urban census subdivision, including CSDUID and CSDNAME. |
+
+# Scripts
+## analysis.py
+
+`analysis.py` prepares the complete set of urban Census Subdivisions (CSDs) used in the Canadian Urban Forest Census. It filters the national CSD boundary file using Statistics Canada’s urban criteria, applies project-specific adjustments, computes land area, assigns each CSD to an ecozone, and generates the final spatial and tabular datasets used in subsequent analyses.
+
+**High-level responsibilities:**
+- Load the 2021 Census Subdivision boundary file, the list of eligible CSDUIDs, and the national ecozone boundaries.  
+- Select urban CSDs using both the eligibility list and additional name-based rules.  
+- Apply manual adjustments:  
+  - Merge Lloydminster (AB + SK) into a single CSD.  
+  - Merge Turner Valley and Black Diamond into “Diamond Valley.”  
+  - Remove Petit-Rocher due to updated density falling below the urban threshold.  
+- Compute geometric attributes, including land area in square kilometers.  
+- Intersect each CSD with ecozones, calculate coverage percentages, and assign a dominant ecozone where coverage ≥ 50.01%.  
+- Produce final outputs:  
+  - `urban_csds.gpkg` / `.shp` (urban CSD polygons),  
+  - `urban_csd_centroids.gpkg` / `.shp` (centroid points),  
+  - `urban_csds_attributes.csv` (areas, ecozone assignment, dominance).  
+- Generate QA summaries and optional maps for merged CSDs and multi-ecozone CSDs.
+
+**Primary inputs:**  
+`census_subdivisions_2021.shp`, `eligible_csduid.csv`, `ecozones.shp` (must include `ZONE_NAME`).  
+
+**Primary outputs:**  
+Urban polygons, centroids, and urban attribute tables used across the project.
+
+
+## `roads.py`
+`roads.py` processes the national road network to produce urban-specific road datasets. It identifies all road segments intersecting urban CSDs, clips them to municipal boundaries, computes road lengths per CSD, generates 20-metre road buffers, and outputs both intermediate and final spatial datasets.
+
+**High-level responsibilities:**
+- Load the national intercensal road network and the final processed urban CSD polygons.  
+- Reproject roads to match the CSD CRS when necessary.  
+- Spatially filter the road network to features that intersect any urban CSD (saved as `intersecting_roads.gpkg`).  
+- Clip road features to individual CSD boundaries and save the results in `clipped_roads.gpkg`.  
+- Calculate road lengths (m → km) for each CSD and export `road_lengths_by_csd.csv`.  
+- Buffer clipped road segments by 20 metres, clip buffers to their respective CSDs, and save `buffered_roads.gpkg`.  
+- Dissolve overlapping buffers within each CSD to create final contiguous buffer polygons, exported as `road_buffers.gpkg` and `.shp`.  
+- Output QA metrics such as total CSDs with road coverage and summary statistics for road lengths.
+
+**Primary inputs:**  
+`roads.shp` (or `.gpkg` road network), `urban_csds.gpkg`.
+
+**Primary outputs:**  
+Clipped roads, buffered roads, dissolved road buffers, and per-CSD road-length summaries.
