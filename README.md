@@ -2,6 +2,15 @@
 This repository houses files used in the analysis of the Canadian Urban Forest Census (2025).
 
 # Datasets
+
+| File Name | Relevant Code | Source File | Source Format | Description |
+|-----------|----------------|-------------|----------------|-------------|
+| **urban_csds** (.shp; .gpkg) | `analysis.py` | 2021 Census Subdivision Boundary File | Cartographic Boundary File (CBF) | Polygons of 343 census subdivisions that are not Indigenous communities and meet the Statistics Canada definition of urban. |
+| **urban_csd_centerpoints** (.shp; .gpkg) | `analysis.py` | `urban_csds.gpkg` | Polygons | Centerpoints generated for the 343 urban census subdivisions. |
+| **clipped_roads** (.shp; .gpkg) | `roads.py` | 2024 Intercensal Road Network File | Polylines | Road network clipped to the boundaries of the 343 urban census subdivisions. |
+| **road_buffers** (.shp; .gpkg) | `roads.py` | `clipped_roads.gpkg` | Polylines | Buffered versions of the clipped road network features. |
+
+
 ## Urban Census Subdivisions 
 **File Name:** urban_csds (.shp; .gpkg)
 
