@@ -7,8 +7,14 @@ var censusSub = ee.FeatureCollection('projects/heroic-glyph-383701/assets/urban_
 // Access Meta 1m Canopy Height Model
 var canopyHeight = ee.ImageCollection('projects/meta-forest-monitoring-okw37/assets/CanopyHeight').mosaic();
 
+// Reproject canopy height to Stats Can Lambert
+var canopyHeightReprojected = canopyHeight.reproject({
+  crs: statsCanLambert,
+  scale: 1
+});
+
 // Create binary canopy layer (>= 2m = 1, < 2m = 0)
-var canopyBinary = canopyHeight.gte(2);
+var canopyBinary = canopyHeightReprojected.gte(2);
 
 // Display the binary canopy layer
 Map.addLayer(canopyBinary.selfMask(), {palette: ['green']}, 'Canopy (>=2m)', false);
@@ -19,12 +25,16 @@ var calculateCanopyMetrics = function(feature) {
   var geometry = feature.geometry();
 
   // Calculate pixel area in square meters (1m x 1m = 1 sq m per pixel)
-  var pixelArea = ee.Image.pixelArea();
+  var pixelArea = ee.Image.pixelArea().reproject({
+    crs: statsCanLambert,
+    scale: 1
+  });
 
   // Calculate total area of the CSD in square meters
   var totalArea = pixelArea.reduceRegion({
     reducer: ee.Reducer.sum(),
     geometry: geometry,
+    crs: statsCanLambert,
     scale: 1,
     maxPixels: 1e13
   }).get('area');
@@ -34,6 +44,7 @@ var calculateCanopyMetrics = function(feature) {
   var canopyAreaResult = canopyAreaImage.reduceRegion({
     reducer: ee.Reducer.sum(),
     geometry: geometry,
+    crs: statsCanLambert,
     scale: 1,
     maxPixels: 1e13
   });
