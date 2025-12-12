@@ -28,14 +28,8 @@ provinces = gpd.read_file('Datasets/Inputs/provinces/provinces_simplified_1km.gp
 csds = gpd.read_file('Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg')
 ecozones = gpd.read_file('Datasets/Inputs/ecozone_shp/ecozones.shp')
 
-print(csds.columns)
-print(csds['CSDUID'].nunique(dropna=True))
-
 csds['CSDUID_num'] = pd.to_numeric(csds['CSDUID'], errors='coerce')
 
-print("Matching rows:", csds['CSDUID_num'].isin(participating_csds).sum())
-
-exit()
 # --- Ensure PRUID is consistent type across all dataframes ---
 provinces['PRUID'] = provinces['PRUID'].astype(int)
 csds['PRUID'] = csds['PRUID'].astype(int)

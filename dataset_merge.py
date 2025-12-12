@@ -3,10 +3,10 @@ import pandas as pd
 # Load data
 csd = pd.read_csv('Datasets/Outputs/urban_csds/urban_csds_attributes.csv')
 roads = pd.read_csv('Datasets/Outputs/roads/road_lengths_by_csd.csv')
-canopy_csds = pd.read_csv('Datasets/Outputs/canopy_cover_csd.csv')
+canopy_csds = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_csd.csv')
 canopy_roads_10m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_10m.csv')
 canopy_roads_20m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv')
-census = pd.read_csv
+census = pd.read_csv('Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv')
 
 print("Original columns:")
 print("CSD:", csd.columns.tolist())
@@ -14,6 +14,7 @@ print("Roads:", roads.columns.tolist())
 print("Canopy in CSDs:", canopy_csds.columns.tolist())
 print("Canopy near roads (10 m):", canopy_roads_10m.columns.tolist())
 print("Canopy near roads (20 m):", canopy_roads_20m.columns.tolist())
+print("2021 Census of Population:", census.columns.tolist())
 
 print("\nData types:")
 print("CSD CSDUID:", csd['CSDUID'].dtype)
@@ -21,6 +22,7 @@ print("Roads CSDUID:", roads['CSDUID'].dtype)
 print("Canopy CSDUID:", canopy_csds['CSDUID'].dtype)
 print("Canopy near roads (10 m) CSDUID:", canopy_roads_10m['CSDUID'].dtype)
 print("Canopy near roads (20 m) CSDUID:", canopy_roads_20m['CSDUID'].dtype)
+print("Census CSDUID:", census['CSDUID'].dtype)
 
 # ---------- Add suffixes to canopy tables ----------
 # Add '_csd' to all canopy_csds columns except the join key CSDUID
@@ -47,7 +49,8 @@ print("Canopy near roads (20 m):", canopy_roads_20m_renamed.columns.tolist())
 merged = csd.merge(roads, on='CSDUID', how='inner') \
     .merge(canopy_csds_renamed, on='CSDUID', how='inner') \
     .merge(canopy_roads_10m_renamed, on='CSDUID', how='inner') \
-    .merge(canopy_roads_20m_renamed, on='CSDUID', how='inner')
+    .merge(canopy_roads_20m_renamed, on='CSDUID', how='inner') \
+    .merge(census, on='CSDUID', how='inner')
 
 print("\nMerged data info:")
 print("Rows:", len(merged))

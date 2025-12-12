@@ -3,4 +3,7 @@
 .idea
 Datasets/Inputs/census_subdivisions_2021
 Datasets/Inputs/roads
-Datasets/Outputs/roads
+Datasets/Outputs/roads/road_buffers_10m
+Datasets/Outputs/roads/road_buffers_20m
+Datasets/Outputs/roads/clipped_roads.gpkg
+Datasets/Outputs/roads/intersecting_roads.gpkg

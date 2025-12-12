@@ -4,7 +4,7 @@ from tqdm import tqdm
 import os
 import pandas as pd
 
-BUFFER_DISTANCE_M = 10  # either 10 or 20
+BUFFER_DISTANCE_M = 20  # either 10 or 20
 
 print("Loading data...")
 roads = gpd.read_file('Datasets/Inputs/roads/roads.shp')
