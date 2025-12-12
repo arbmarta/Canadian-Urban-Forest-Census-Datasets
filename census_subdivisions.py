@@ -11,6 +11,28 @@ csd = gpd.read_file('Datasets/Inputs/census_subdivisions_2021/census_subdivision
 eligible_csduid = pd.read_csv('Datasets/Inputs/eligible_csduid.csv')
 ecozone = gpd.read_file('Datasets/Inputs/ecozone_shp/ecozones.shp')
 
+# Add province column to csd
+print(csd['PRUID'].unique())
+
+provinces_territories = {
+    10: "Newfoundland and Labrador",
+    11: "Prince Edward Island",
+    12: "Nova Scotia",
+    13: "New Brunswick",
+    24: "Quebec",
+    35: "Ontario",
+    46: "Manitoba",
+    47: "Saskatchewan",
+    48: "Alberta",
+    59: "British Columbia",
+    60: "Yukon",
+    61: "Northwest Territories",
+    62: "Nunavut"
+}
+
+csd['province'] = csd['PRUID'].astype(int).map(provinces_territories)
+print(csd[['PRUID', 'province']].head())
+
 csd['CSDUID'] = pd.to_numeric(csd['CSDUID'], errors='coerce')
 eligible_csduid['CSDUID'] = pd.to_numeric(eligible_csduid['CSDUID'], errors='coerce')
 
@@ -424,7 +446,8 @@ centroids_gpkg.to_file(centroid_gpkg_path, driver="GPKG")
 print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 
 # 3. Save attribute table as CSV (with full column names)
-csv_data = csd_urban[['CSDUID', 'CSDNAME', 'area_km2', 'assigned_ecozone', 'dominant_ecozone', 'coverage_pct']].copy()
+csv_data = csd_urban[['CSDUID', 'CSDNAME', 'PRUID', 'province', 'area_km2', 'assigned_ecozone', 'dominant_ecozone',
+                      'coverage_pct']].copy()
 csv_path = 'Datasets/Outputs/urban_csds/urban_csds_attributes.csv'
 csv_data.to_csv(csv_path, index=False)
 print(f"Saved attribute table to: {csv_path}")
