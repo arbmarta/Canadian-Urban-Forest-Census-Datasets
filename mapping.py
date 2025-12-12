@@ -3,6 +3,10 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import warnings
+
+# Suppress the specific GeoPandas overlay warning
+warnings.filterwarnings('ignore', message='.*keep_geom_type.*')
 
 participating_csds = id_list = [1212014, 4817029, 4603053, 5915046, 5935010, 5915043, 5915051, 5903015, 5915011,
                                 3530013, 4802019, 3547048, 3543031, 3509028, 3502008, 5917015, 3501012, 4602037,
