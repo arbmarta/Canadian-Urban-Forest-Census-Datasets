@@ -3,21 +3,40 @@ import pandas as pd
 # Load data
 csd = pd.read_csv('Datasets/Outputs/urban_csds/urban_csds_attributes.csv')
 roads = pd.read_csv('Datasets/Outputs/roads/road_lengths_by_csd.csv')
-canopy = pd.read_csv('Datasets/Outputs/canopy_cover_csd.csv')
+canopy_csds = pd.read_csv('Datasets/Outputs/canopy_cover_csd.csv')
+canopy_roads_20m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv')
 
 print("Original columns:")
 print("CSD:", csd.columns.tolist())
 print("Roads:", roads.columns.tolist())
-print("Canopy:", canopy.columns.tolist())
+print("Canopy in CSDs:", canopy_csds.columns.tolist())
+print("Canopy near roads:", canopy_roads_20m.columns.tolist())
 
 print("\nData types:")
 print("CSD CSDUID:", csd['CSDUID'].dtype)
 print("Roads CSDUID:", roads['CSDUID'].dtype)
-print("Canopy CSDUID:", canopy['CSDUID'].dtype)
+print("Canopy CSDUID:", canopy_csds['CSDUID'].dtype)
+print("Canopy near roads:", canopy_roads_20m['CSDUID'].dtype)
+
+# ---------- Add suffixes to canopy tables ----------
+# Add '_csd' to all canopy_csds columns except the join key CSDUID
+canopy_csds_renamed = canopy_csds.rename(
+    columns={c: f"{c}_csd" for c in canopy_csds.columns if c != "CSDUID"}
+)
+
+# Add '_20m_buffer' to all canopy_roads_20m columns except the join key CSDUID
+canopy_roads_renamed = canopy_roads_20m.rename(
+    columns={c: f"{c}_20m_buffer" for c in canopy_roads_20m.columns if c != "CSDUID"}
+)
+
+print("\nAfter suffixing canopy columns:")
+print("Canopy in CSDs:", canopy_csds_renamed.columns.tolist())
+print("Canopy near roads:", canopy_roads_renamed.columns.tolist())
 
 # Merge datasets
 merged = csd.merge(roads, on='CSDUID', how='inner') \
-    .merge(canopy, on='CSDUID', how='inner')
+    .merge(canopy_csds, on='CSDUID', how='inner') \
+    .merge(canopy_roads_20m, on='CSDUID', how='inner')
 
 print("\nMerged data info:")
 print("Rows:", len(merged))

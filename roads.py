@@ -140,16 +140,16 @@ else:
 ## --------------------------------------------------- Buffer Roads ----------------------------------------------------
 # region
 
-buffered_roads_path = 'Datasets/Outputs/roads/buffered_roads.gpkg'
+buffered_roads_path = 'Datasets/Outputs/roads/buffered_roads_10m.gpkg'
 
 if os.path.exists(buffered_roads_path):
     print(f"\nLoading pre-buffered roads from: {buffered_roads_path}")
     road_buffers_gdf = gpd.read_file(buffered_roads_path)
     print(f"Loaded {len(road_buffers_gdf)} buffered road segments")
 else:
-    print("\nBuffering roads by 20 meters...")
+    print("\nBuffering roads by 10 meters...")
     buffered_roads_gdf = clipped_roads_gdf.copy()
-    buffered_roads_gdf['geometry'] = buffered_roads_gdf.geometry.buffer(20)
+    buffered_roads_gdf['geometry'] = buffered_roads_gdf.geometry.buffer(10)
 
     print("\nClipping buffers to CSD boundaries...")
 
@@ -202,12 +202,12 @@ road_buffers_shp = road_buffers_dissolved.copy()
 # CSDUID is already short enough (6 characters)
 
 # Save as GeoPackage
-output_gpkg_path = 'Datasets/Outputs/roads/road_buffers.gpkg'
+output_gpkg_path = 'Datasets/Outputs/roads/road_buffers_10m.gpkg'
 road_buffers_dissolved.to_file(output_gpkg_path, driver="GPKG")
 print(f"\nSaved road buffers (geopackage) to: {output_gpkg_path}")
 
 # Save as Shapefile
-output_shp_path = 'Datasets/Outputs/roads/road_buffers.shp'
+output_shp_path = 'Datasets/Outputs/roads/road_buffers_10m.shp'
 road_buffers_shp.to_file(output_shp_path, driver="ESRI Shapefile")
 print(f"Saved road buffers (shapefile) to: {output_shp_path}")
 
