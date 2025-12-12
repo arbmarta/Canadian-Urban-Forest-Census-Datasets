@@ -4,19 +4,22 @@ import pandas as pd
 csd = pd.read_csv('Datasets/Outputs/urban_csds/urban_csds_attributes.csv')
 roads = pd.read_csv('Datasets/Outputs/roads/road_lengths_by_csd.csv')
 canopy_csds = pd.read_csv('Datasets/Outputs/canopy_cover_csd.csv')
+canopy_roads_10m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_10m.csv')
 canopy_roads_20m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv')
 
 print("Original columns:")
 print("CSD:", csd.columns.tolist())
 print("Roads:", roads.columns.tolist())
 print("Canopy in CSDs:", canopy_csds.columns.tolist())
-print("Canopy near roads:", canopy_roads_20m.columns.tolist())
+print("Canopy near roads (10 m):", canopy_roads_10m.columns.tolist())
+print("Canopy near roads (20 m):", canopy_roads_20m.columns.tolist())
 
 print("\nData types:")
 print("CSD CSDUID:", csd['CSDUID'].dtype)
 print("Roads CSDUID:", roads['CSDUID'].dtype)
 print("Canopy CSDUID:", canopy_csds['CSDUID'].dtype)
-print("Canopy near roads:", canopy_roads_20m['CSDUID'].dtype)
+print("Canopy near roads (10 m) CSDUID:", canopy_roads_10m['CSDUID'].dtype)
+print("Canopy near roads (20 m) CSDUID:", canopy_roads_20m['CSDUID'].dtype)
 
 # ---------- Add suffixes to canopy tables ----------
 # Add '_csd' to all canopy_csds columns except the join key CSDUID
@@ -24,19 +27,26 @@ canopy_csds_renamed = canopy_csds.rename(
     columns={c: f"{c}_csd" for c in canopy_csds.columns if c != "CSDUID"}
 )
 
+# Add '_10m_buffer' to all canopy_roads_10m columns except the join key CSDUID
+canopy_roads_10m_renamed = canopy_roads_10m.rename(
+    columns={c: f"{c}_10m_buffer" for c in canopy_roads_10m.columns if c != "CSDUID"}
+)
+
 # Add '_20m_buffer' to all canopy_roads_20m columns except the join key CSDUID
-canopy_roads_renamed = canopy_roads_20m.rename(
+canopy_roads_20m_renamed = canopy_roads_20m.rename(
     columns={c: f"{c}_20m_buffer" for c in canopy_roads_20m.columns if c != "CSDUID"}
 )
 
 print("\nAfter suffixing canopy columns:")
 print("Canopy in CSDs:", canopy_csds_renamed.columns.tolist())
-print("Canopy near roads:", canopy_roads_renamed.columns.tolist())
+print("Canopy near roads (10 m):", canopy_roads_10m_renamed.columns.tolist())
+print("Canopy near roads (20 m):", canopy_roads_20m_renamed.columns.tolist())
 
 # Merge datasets
 merged = csd.merge(roads, on='CSDUID', how='inner') \
-    .merge(canopy_csds, on='CSDUID', how='inner') \
-    .merge(canopy_roads_20m, on='CSDUID', how='inner')
+    .merge(canopy_csds_renamed, on='CSDUID', how='inner') \
+    .merge(canopy_roads_10m_renamed, on='CSDUID', how='inner') \
+    .merge(canopy_roads_20m_renamed, on='CSDUID', how='inner')
 
 print("\nMerged data info:")
 print("Rows:", len(merged))
@@ -89,11 +99,11 @@ if 'dominant_ecozone' in merged.columns:
         print(not_yes_df['coverage_pct'].describe())
 
     else:
-        print("\n✓ All rows have dominant_ecozone = 'Yes'!")
+        print("\n✓ All rows have dominant_ecozone = 'Yes'")
         print("  The dominant_ecozone column can be safely dropped if not needed.")
 
 else:
-    print("\n⚠️  ERROR: 'dominant_ecozone' column not found in merged dataframe!")
+    print("\n⚠️  ERROR: 'dominant_ecozone' column not found in merged dataframe")
 
 print("\n" + "=" * 70)
 
@@ -105,7 +115,6 @@ rename_mapping = {
     'assigned_ecozone': 'ecozone',
     'coverage_pct': 'ecozone_coverage_pct',
     'length_km': 'road_length_km',
-    'total_area_km2': 'total_area_km2',
     'canopy_area_km2': 'canopy_area_csd_km2',
     'canopy_proportion': 'canopy_proportion_csd'
 }
@@ -162,5 +171,5 @@ print("\nFinal columns after renaming:")
 print(df.columns.tolist())
 
 # Save result
-df.to_csv('Datasets/Outputs/merged_urban_data.csv', index=False)
-print("\nMerged data saved to 'Datasets/Outputs/merged_urban_data.csv'")
+df.to_csv('Datasets/Outputs/Canadian_urban_forest_census_independent_variables.csv', index=False)
+print("\nMerged data saved to 'Datasets/Outputs/Canadian_urban_forest_census_independent_variables.csv'")
