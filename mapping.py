@@ -27,6 +27,7 @@ participating_set = set(participating_csds)
 provinces = gpd.read_file('Datasets/Inputs/provinces/provinces_simplified_1km.gpkg')
 csds = gpd.read_file('Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg')
 ecozones = gpd.read_file('Datasets/Inputs/ecozone_shp/ecozones.shp')
+ecozones = ecozones.to_crs(provinces.crs)  # match ecozone CRS to provinces
 
 csds['CSDUID_num'] = pd.to_numeric(csds['CSDUID'], errors='coerce')
 
@@ -68,6 +69,9 @@ if in_list_not_in_csds:
 
 # --- Fix spelling mistake in Boreal Plain ---
 ecozones['ZONE_NAME'] = ecozones['ZONE_NAME'].replace('Boreal PLain', 'Boreal Plain')
+
+# --- Clip ecozones to provincial boundaries for national map ---
+ecozones = gpd.overlay(ecozones, provinces, how='intersection')
 
 # --- Create figure and axis for national map ---
 fig, ax = plt.subplots(figsize=(15, 10))
@@ -239,7 +243,7 @@ for region_name, pruid_list in regions.items():
         continue
 
     # Filter ecozones by PRUID
-    region_ecozones = ecozones[ecozones['PRUID'].isin(pruid_list)]
+    region_ecozones = gpd.overlay(ecozones, region_provinces, how='intersection')
 
     # Filter communities by PRUID
     region_communities = csds[csds['PRUID'].isin(pruid_list)]
@@ -266,8 +270,8 @@ for region_name, pruid_list in regions.items():
                                 linewidth=0.5)
 
     # Separate eligible and participating municipalities
-    eligible_only = region_communities[region_communities['Participated'] != 'Yes']
-    participating = region_communities[region_communities['Participated'] == 'Yes']
+    eligible_only = region_communities[~region_communities['CSDUID_int'].isin(participating_set)]
+    participating = region_communities[region_communities['CSDUID_int'].isin(participating_set)]
 
     # Plot eligible (non-participating) communities
     if not eligible_only.empty:
