@@ -102,7 +102,7 @@ print("\n" + "="*70 + "\n")
 
 #endregion
 
-## --------------------------------- Merge Black Diamond, Turner Valley & Lloydminster ---------------------------------
+## -------------------------------- Merge Black Diamond, Turner Valley & Lloydminsters ---------------------------------
 # region
 
 print("\n" + "=" * 70)
@@ -110,45 +110,42 @@ print(" Merging Multi-Part CSDs")
 print("=" * 70)
 
 # ===== BLACK DIAMOND + TURNER VALLEY =====
-dt_cond = csd_urban['CSDNAME'].str.contains("black diamond", case=False, na=False) | \
-          csd_urban['CSDNAME'].str.contains("turner valley", case=False, na=False)
+dt_cond = (
+    csd_urban['CSDNAME'].str.contains("black diamond", case=False, na=False) |
+    csd_urban['CSDNAME'].str.contains("turner valley", case=False, na=False)
+)
+
 dt_rows = csd_urban.loc[dt_cond, ['CSDUID', 'CSDNAME', 'geometry']]
 
 print("\nBlack Diamond + Turner Valley source rows:")
 print(pretty(dt_rows[['CSDUID', 'CSDNAME']]))
 
 if len(dt_rows) > 0:
-    # Get Turner Valley CSDUID (4806009)
-    turner_valley_csduid = \
-    dt_rows[dt_rows['CSDNAME'].str.contains("turner valley", case=False, na=False)]['CSDUID'].iloc[0]
-
-    # Create merged geometry
-    dt_geom_union = unary_union(dt_rows.geometry.values)
-
-    # Visualize the merge
-    dt_merged_gdf = gpd.GeoDataFrame(
-        {'name': ['Diamond Valley'], 'geometry': [dt_geom_union]},
-        crs=csd_urban.crs
+    # Get Black Diamond CSDUID
+    black_diamond_csduid = (
+        dt_rows[
+            dt_rows['CSDNAME'].str.contains("black diamond", case=False, na=False)
+        ]['CSDUID']
+        .iloc[0]
     )
 
-    fig, ax = plt.subplots(figsize=(8, 8))
-    dt_merged_gdf.to_crs(epsg=3857).plot(ax=ax, edgecolor='red', facecolor='none', linewidth=2)
-    ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
-    ax.set_title('Diamond Valley (Black Diamond + Turner Valley merged)')
-    ax.set_axis_off()
-    plt.show()
+    # Merge geometries
+    dt_geom_union = unary_union(dt_rows.geometry.values)
 
-    # Actually merge in the dataset
+    # Create merged row
     merged_dt = csd_urban[dt_cond].iloc[0].copy()
     merged_dt['geometry'] = dt_geom_union
     merged_dt['CSDNAME'] = 'Diamond Valley'
-    merged_dt['CSDUID'] = turner_valley_csduid
+    merged_dt['CSDUID'] = black_diamond_csduid
 
-    # Remove original rows and add merged row
+    # Replace originals with merged feature
     csd_urban = csd_urban[~dt_cond].copy()
-    csd_urban = pd.concat([csd_urban, gpd.GeoDataFrame([merged_dt], crs=csd_urban.crs)], ignore_index=True)
+    csd_urban = pd.concat(
+        [csd_urban, gpd.GeoDataFrame([merged_dt], crs=csd_urban.crs)],
+        ignore_index=True
+    )
 
-    print(f"✓ Merged into Diamond Valley (CSDUID: {turner_valley_csduid})")
+    print(f"✓ Merged into Diamond Valley (CSDUID: {black_diamond_csduid})")
 
 print("\n" + "-" * 70)
 
@@ -160,36 +157,31 @@ print("\nLloydminster source rows:")
 print(pretty(lloyd_rows[['CSDUID', 'CSDNAME']]))
 
 if len(lloyd_rows) > 0:
-    # Get Alberta Lloydminster CSDUID (4717029)
-    alberta_lloyd_csduid = lloyd_rows[lloyd_rows['CSDUID'].astype(str).str.startswith('47')]['CSDUID'].iloc[0]
-
-    # Create merged geometry
-    lloyd_geom_union = unary_union(lloyd_rows.geometry.values)
-
-    # Visualize the merge
-    lloyd_merged_gdf = gpd.GeoDataFrame(
-        {'name': ['Lloydminster'], 'geometry': [lloyd_geom_union]},
-        crs=csd_urban.crs
+    # Get Alberta Lloydminster CSDUID (PRUID 48)
+    alberta_lloydminster_csduid = (
+        lloyd_rows[
+            lloyd_rows['CSDUID'].astype(str).str.startswith('48')
+        ]['CSDUID']
+        .iloc[0]
     )
 
-    fig, ax = plt.subplots(figsize=(8, 8))
-    lloyd_merged_gdf.to_crs(epsg=3857).plot(ax=ax, edgecolor='blue', facecolor='none', linewidth=2)
-    ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
-    ax.set_title('Lloydminster (AB + SK merged)')
-    ax.set_axis_off()
-    plt.show()
+    # Merge geometries
+    lloyd_geom_union = unary_union(lloyd_rows.geometry.values)
 
-    # Actually merge in the dataset
+    # Create merged row
     merged_lloyd = csd_urban[lloyd_cond].iloc[0].copy()
     merged_lloyd['geometry'] = lloyd_geom_union
     merged_lloyd['CSDNAME'] = 'Lloydminster'
-    merged_lloyd['CSDUID'] = alberta_lloyd_csduid
+    merged_lloyd['CSDUID'] = alberta_lloydminster_csduid
 
-    # Remove original rows and add merged row
+    # Replace originals with merged feature
     csd_urban = csd_urban[~lloyd_cond].copy()
-    csd_urban = pd.concat([csd_urban, gpd.GeoDataFrame([merged_lloyd], crs=csd_urban.crs)], ignore_index=True)
+    csd_urban = pd.concat(
+        [csd_urban, gpd.GeoDataFrame([merged_lloyd], crs=csd_urban.crs)],
+        ignore_index=True
+    )
 
-    print(f"✓ Merged into Lloydminster (CSDUID: {alberta_lloyd_csduid})")
+    print(f"✓ Merged into Lloydminster (CSDUID: {alberta_lloydminster_csduid})")
 
 print(f"\nTotal CSDs after merging: {len(csd_urban)}")
 print("\n" + "=" * 70 + "\n")

@@ -6,6 +6,7 @@ roads = pd.read_csv('Datasets/Outputs/roads/road_lengths_by_csd.csv')
 canopy_csds = pd.read_csv('Datasets/Outputs/canopy_cover_csd.csv')
 canopy_roads_10m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_10m.csv')
 canopy_roads_20m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv')
+census = pd.read_csv
 
 print("Original columns:")
 print("CSD:", csd.columns.tolist())

@@ -4,6 +4,8 @@ from tqdm import tqdm
 import os
 import pandas as pd
 
+BUFFER_DISTANCE_M = 10  # either 10 or 20
+
 print("Loading data...")
 roads = gpd.read_file('Datasets/Inputs/roads/roads.shp')
 csd = gpd.read_file('Datasets/Outputs/urban_csds/urban_csds.gpkg')
@@ -137,19 +139,25 @@ else:
 
 # endregion
 
-## --------------------------------------------------- Buffer Roads ----------------------------------------------------
+# --------------------------------------------------- Buffer Roads ----------------------------------------------------
 # region
 
-buffered_roads_path = 'Datasets/Outputs/roads/buffered_roads_10m.gpkg'
+# Create buffer-specific output directory and file paths
+buffer_dir = f'Datasets/Outputs/roads/road_buffers_{BUFFER_DISTANCE_M}m'
+os.makedirs(buffer_dir, exist_ok=True)
 
-if os.path.exists(buffered_roads_path):
-    print(f"\nLoading pre-buffered roads from: {buffered_roads_path}")
-    road_buffers_gdf = gpd.read_file(buffered_roads_path)
+buffered_roads_gpkg = os.path.join(buffer_dir, f'buffered_roads_{BUFFER_DISTANCE_M}m.gpkg')
+
+if os.path.exists(buffered_roads_gpkg):
+    print(f"\nLoading pre-buffered roads from: {buffered_roads_gpkg}")
+    road_buffers_gdf = gpd.read_file(buffered_roads_gpkg)
     print(f"Loaded {len(road_buffers_gdf)} buffered road segments")
 else:
-    print("\nBuffering roads by 10 meters...")
+    print(f"\nBuffering roads by {BUFFER_DISTANCE_M} meters...")
     buffered_roads_gdf = clipped_roads_gdf.copy()
-    buffered_roads_gdf['geometry'] = buffered_roads_gdf.geometry.buffer(10)
+
+    # use the variable here
+    buffered_roads_gdf['geometry'] = buffered_roads_gdf.geometry.buffer(BUFFER_DISTANCE_M)
 
     print("\nClipping buffers to CSD boundaries...")
 
@@ -158,8 +166,21 @@ else:
         buffer_geom = buffer_row.geometry
         csduid = buffer_row['CSDUID']
 
-        # Get the CSD polygon
-        csd_geom = csd[csd['CSDUID'] == csduid].iloc[0].geometry
+        # Safe lookup of CSD polygon (ensure matching types)
+        # If your csd['CSDUID'] is not int, coerce both sides consistently earlier
+        csd_match = csd.loc[csd['CSDUID'] == csduid, 'geometry']
+        if csd_match.empty:
+            # fallback: try numeric comparison if types mismatch
+            try:
+                csd_match = csd.loc[pd.to_numeric(csd['CSDUID'], errors='coerce') == int(csduid), 'geometry']
+            except Exception:
+                csd_match = csd_match  # stay empty
+        if csd_match.empty:
+            # warn and skip if no CSD polygon found
+            print(f"Warning: no CSD polygon found for CSDUID {csduid}; skipping buffer idx {idx}")
+            continue
+
+        csd_geom = csd_match.iloc[0]
 
         # Clip the buffer to the CSD boundary
         clipped_buffer = buffer_geom.intersection(csd_geom)
@@ -173,14 +194,15 @@ else:
     road_buffers_gdf = gpd.GeoDataFrame(final_buffers, crs=csd.crs)
     print(f"Final road buffers: {len(road_buffers_gdf)}")
 
-    # Save for future use
-    print(f"Saving buffered roads to: {buffered_roads_path}")
-    road_buffers_gdf.to_file(buffered_roads_path, driver="GPKG")
+    # Save for future use (explicit file)
+    print(f"Saving buffered roads to: {buffered_roads_gpkg}")
+    road_buffers_gdf.to_file(buffered_roads_gpkg, driver="GPKG")
     print("Saved successfully")
 
 # endregion
 
-## ------------------------------------------------- Dissolve Buffers --------------------------------------------------
+
+# ------------------------------------------------- Dissolve Buffers --------------------------------------------------
 # region
 
 print("\nDissolving overlapping buffers within each CSD...")
@@ -194,20 +216,21 @@ print(road_buffers_dissolved[['CSDUID']].head())
 
 # endregion
 
-## ---------------------------------------------------- Save Output ----------------------------------------------------
+
+# ---------------------------------------------------- Save Output ----------------------------------------------------
 # region
 
 # Rename columns for shapefile compatibility
 road_buffers_shp = road_buffers_dissolved.copy()
 # CSDUID is already short enough (6 characters)
 
-# Save as GeoPackage
-output_gpkg_path = 'Datasets/Outputs/roads/road_buffers_10m.gpkg'
+# Save as GeoPackage (file inside buffer_dir)
+output_gpkg_path = os.path.join(buffer_dir, f'road_buffers_{BUFFER_DISTANCE_M}m.gpkg')
 road_buffers_dissolved.to_file(output_gpkg_path, driver="GPKG")
 print(f"\nSaved road buffers (geopackage) to: {output_gpkg_path}")
 
-# Save as Shapefile
-output_shp_path = 'Datasets/Outputs/roads/road_buffers_10m.shp'
+# Save as Shapefile (shapefile will create multiple files in the same folder)
+output_shp_path = os.path.join(buffer_dir, f'road_buffers_{BUFFER_DISTANCE_M}m.shp')
 road_buffers_shp.to_file(output_shp_path, driver="ESRI Shapefile")
 print(f"Saved road buffers (shapefile) to: {output_shp_path}")
 
