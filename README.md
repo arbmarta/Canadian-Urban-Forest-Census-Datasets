@@ -117,23 +117,50 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 
 
 ## `roads.py`
-`roads.py` processes the national road network to produce urban-specific road datasets. It identifies all road segments intersecting urban CSDs, clips them to municipal boundaries, computes road lengths per CSD, generates 20-metre road buffers, and outputs both intermediate and final spatial datasets.
 
-**High-level responsibilities:**
-- Load the national intercensal road network and the final processed urban CSD polygons.  
-- Reproject roads to match the CSD CRS when necessary.  
-- Spatially filter the road network to features that intersect any urban CSD (saved as `intersecting_roads.gpkg`).  
-- Clip road features to individual CSD boundaries and save the results in `clipped_roads.gpkg`.  
-- Calculate road lengths (m → km) for each CSD and export `road_lengths_by_csd.csv`.  
-- Buffer clipped road segments by 20 metres, clip buffers to their respective CSDs, and save `buffered_roads.gpkg`.  
-- Dissolve overlapping buffers within each CSD to create final contiguous buffer polygons, exported as `road_buffers.gpkg` and `.shp`.  
-- Output QA metrics such as total CSDs with road coverage and summary statistics for road lengths.
+`roads.py` processes the national road network to generate municipality-specific road metrics and buffer zones. It spatially filters and clips road segments to urban CSDs, calculates total road lengths, creates buffered geometries (e.g., 10 m or 20 m), and exports final dissolved buffer layers for canopy analysis. The buffer distance is controlled by a global variable (`BUFFER_DISTANCE_M`), enabling reuse of the same script for different scenarios.
 
-**Primary inputs:**  
-`roads.shp` (or `.gpkg` road network), `urban_csds.gpkg`.
+### **High-level responsibilities**
+- Load and reproject the national road network to match the CRS of processed urban CSDs.
+- Filter the national road network to include only roads that intersect urban municipalities.
+- Clip road segments to their respective CSD boundaries.
+- Compute per-CSD road lengths (in kilometers) and export as a summary CSV.
+- Create road buffers at a user-defined distance (default: 20 m).
+- Clip buffered road segments to their enclosing municipality boundaries.
+- Dissolve overlapping buffers within each CSD to create contiguous road-adjacent zones.
+- Export final outputs as both GeoPackage and ESRI Shapefile formats.
 
-**Primary outputs:**  
-Clipped roads, buffered roads, dissolved road buffers, and per-CSD road-length summaries.
+### **Primary inputs**
+- `Datasets/Inputs/roads/roads.shp`
+- `Datasets/Outputs/urban_csds/urban_csds.gpkg`
+
+### **Primary outputs**
+- `Datasets/Outputs/roads/intersecting_roads.gpkg` — Filtered road segments intersecting urban areas
+- `Datasets/Outputs/roads/clipped_roads.gpkg` — Road segments clipped to individual CSD boundaries
+- `Datasets/Outputs/roads/road_lengths_by_csd.csv` — Total road length (km) for each CSD
+- `Datasets/Outputs/roads/road_buffers_XXm/buffered_roads_XXm.gpkg` — Unmerged buffers per segment
+- `Datasets/Outputs/roads/road_buffers_XXm/road_buffers_XXm.gpkg` — Final dissolved buffer polygons (GeoPackage)
+- `Datasets/Outputs/roads/road_buffers_XXm/road_buffers_XXm.shp` — Final dissolved buffer polygons (Shapefile)
+
+> Note: `XXm` refers to the buffer distance in meters (e.g., `10m` or `20m`).
+
+### **Features**
+- **Caching**: Skips reprocessing if intermediate files already exist (e.g., intersected or clipped roads).
+- **Progress bars**: Uses `tqdm` to visualize progress during clipping and buffering operations.
+- **Geometry QA**: Automatically warns about CSDs with less than 100 km of road length.
+- **Safe geometry handling**: Uses type checks and fallback matching for `CSDUID` to avoid errors during clipping.
+- **Export compatibility**: Shortens field names where necessary for shapefile compatibility.
+
+### **Use cases**
+- Spatial analysis of transportation-adjacent canopy cover
+- Quantifying road density across urban municipalities
+- Generating inputs for buffer-based canopy metrics in Google Earth Engine
+
+### **To switch between buffer sizes**
+Change the `BUFFER_DISTANCE_M` variable at the top of the script to either `10` or `20` to regenerate the relevant datasets:
+```python
+BUFFER_DISTANCE_M = 10  # or 20
+
 
 ## `canopy_metrics.js`
 
