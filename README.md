@@ -65,28 +65,55 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 # Scripts
 ## `census_subdivisions.py`
 
-`census_subdivisions.py` prepares the complete set of urban Census Subdivisions (CSDs) used in the Canadian Urban Forest Census. It filters the national CSD boundary file using Statistics Canada’s urban criteria, applies project-specific adjustments, computes land area, assigns each CSD to an ecozone, and generates the final spatial and tabular datasets used in subsequent analyses.
+`census_subdivisions.py` processes the national Census Subdivision (CSD) boundary file to create the final set of urban municipalities used in the Canadian Urban Forest Census. It applies Statistics Canada’s urban definition, handles inter-municipal amalgamations, assigns ecozones, calculates land area, and produces standardized spatial and tabular outputs for all qualifying urban CSDs.
 
-**High-level responsibilities:**
-- Load the 2021 Census Subdivision boundary file, the list of eligible CSDUIDs, and the national ecozone boundaries.  
-- Select urban CSDs using both the eligibility list and additional name-based rules.  
-- Apply manual adjustments:  
-  - Merge Lloydminster (AB + SK) into a single CSD.  
-  - Merge Turner Valley and Black Diamond into “Diamond Valley.”  
-  - Remove Petit-Rocher due to updated density falling below the urban threshold.  
-- Compute geometric attributes, including land area in square kilometers.  
-- Intersect each CSD with ecozones, calculate coverage percentages, and assign a dominant ecozone where coverage ≥ 50.01%.  
-- Produce final outputs:  
-  - `urban_csds.gpkg` / `.shp` (urban CSD polygons),  
-  - `urban_csd_centroids.gpkg` / `.shp` (centroid points),  
-  - `urban_csds_attributes.csv` (areas, ecozone assignment, dominance).  
-- Generate QA summaries and optional maps for merged CSDs and multi-ecozone CSDs.
+### **High-level responsibilities**
+- Load CSD boundaries (2021), list of eligible CSDUIDs, and national ecozone polygons.
+- Apply name-based rules and eligibility list to select urban municipalities.
+- Perform project-specific edits:
+  - Merge Black Diamond and Turner Valley into *Diamond Valley*.
+  - Merge Alberta and Saskatchewan parts of *Lloydminster*.
+  - Remove *Petit-Rocher* due to revised population density.
+- Assign each CSD to an ecozone using spatial intersection:
+  - Identify dominant ecozone when coverage ≥ 50.01%.
+  - Report any CSDs with no dominant ecozone.
+- Calculate land area (km²) using equal-area projection (EPSG:3347).
+- Generate optional QA reports and ecozone overlap maps for municipalities spanning multiple ecozones.
+- Save standardized urban boundaries, centroid points, and attribute tables to disk.
 
-**Primary inputs:**  
-`census_subdivisions_2021.shp`, `eligible_csduid.csv`, `ecozones.shp` (must include `ZONE_NAME`).  
+### **Primary inputs**
+- `Datasets/Inputs/census_subdivisions_2021/census_subdivisions_2021.shp`
+- `Datasets/Inputs/eligible_csduid.csv`
+- `Datasets/Inputs/ecozone_shp/ecozones.shp`
 
-**Primary outputs:**  
-Urban polygons, centroids, and urban attribute tables used across the project.
+### **Primary outputs**
+- `Datasets/Outputs/urban_csds/urban_csds.shp` — Urban CSD polygons (Shapefile format)
+- `Datasets/Outputs/urban_csds/urban_csds.gpkg` — Urban CSD polygons (GPKG format)
+- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.shp` — Centroid points (Shapefile format)
+- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg` — Centroid points (GPKG format)
+- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv` — Tabular summary with CSDUID, name, land area, ecozone assignment, and dominance status
+
+### **Ecozone assignment logic**
+- Each CSD is intersected with all ecozones.
+- If only one ecozone intersects: assigned directly.
+- If multiple: coverage area is calculated for each, and the ecozone with ≥ 50.01% coverage is assigned as dominant.
+- CSDs with no dominant ecozone are flagged for manual review.
+
+### **Special handling**
+- Manual polygon merges for Diamond Valley and Lloydminster are performed using `unary_union` to create new geometries.
+- Amalgamated polygons inherit the CSDUID of one constituent part (typically the Alberta side or earlier ID).
+
+### **Optional QA**
+- Console summaries report:
+  - Name-based vs. ID-based matches
+  - Removed CSDs (e.g., Petit-Rocher)
+  - Multi-ecozone overlaps and assignment errors
+- Auto-generated maps visualize ecozone intersections for complex CSDs using Matplotlib and `contextily`.
+
+### **Notes**
+- All spatial operations are done using `geopandas` in a Lambert conformal conic CRS (EPSG:3347).
+- Attribute names in shapefiles are shortened for format compatibility.
+- This script provides the foundation for all subsequent spatial and statistical analyses in the project.
 
 
 ## `roads.py`
