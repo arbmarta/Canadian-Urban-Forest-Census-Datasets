@@ -69,221 +69,353 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **canopy_cover_road_buffers_10m.csv** | .csv | `canopy_metrics.js` | `road_buffers_10m.gpkg` | Tabular | Canopy area (km²) and canopy percentage within 10-m dissolved road-buffer zones for each CSD. |
 | **Canadian_urban_forest_census_independent_variables.csv** | .csv | `merged_datasets.py` | Aggregated outputs | Tabular | Merged dataset containing key urban forest and infrastructure variables for statistical or regression analysis. |
 
-# Scripts
+# Scripts Documentation
 
+This directory contains the core processing scripts for analyzing urban canopy coverage across Canadian municipalities.
 
-## `roads.py`
+---
 
-`roads.py` processes the national road network to generate municipality-specific road metrics and buffer zones. It spatially filters and clips road segments to urban CSDs, calculates total road lengths, creates buffered geometries (e.g., 10 m or 20 m), and exports final dissolved buffer layers for canopy analysis. The buffer distance is controlled by a global variable (`BUFFER_DISTANCE_M`), enabling reuse of the same script for different scenarios.
+## 📊 Overview
 
-### **High-level responsibilities**
-- Load and reproject the national road network to match the CRS of processed urban CSDs.
-- Filter the national road network to include only roads that intersect urban municipalities.
-- Clip road segments to their respective CSD boundaries.
-- Compute per-CSD road lengths (in kilometers) and export as a summary CSV.
-- Create road buffers at a user-defined distance (default: 20 m).
-- Clip buffered road segments to their enclosing municipality boundaries.
-- Dissolve overlapping buffers within each CSD to create contiguous road-adjacent zones.
-- Export final outputs as both GeoPackage and ESRI Shapefile formats.
+The pipeline consists of three main components:
 
-### **Primary inputs**
-- `Datasets/Inputs/roads/roads.shp`
-- `Datasets/Outputs/urban_csds/urban_csds.gpkg`
+1. **Spatial Processing** (`urban_csds.py`, `roads.py`) — Prepare municipal boundaries and road networks
+2. **Canopy Analysis** (`canopy_metrics.js`) — Calculate vegetation metrics using Google Earth Engine
+3. **Data Integration** (`dataset_merge.py`) — Consolidate outputs into a unified dataset
 
-### **Primary outputs**
-- `Datasets/Outputs/roads/intersecting_roads.gpkg` — Filtered road segments intersecting urban areas
-- `Datasets/Outputs/roads/clipped_roads.gpkg` — Road segments clipped to individual CSD boundaries
-- `Datasets/Outputs/roads/road_lengths_by_csd.csv` — Total road length (km) for each CSD
-- `Datasets/Outputs/roads/road_buffers_XXm/buffered_roads_XXm.gpkg` — Unmerged buffers per segment
-- `Datasets/Outputs/roads/road_buffers_XXm/road_buffers_XXm.gpkg` — Final dissolved buffer polygons (GeoPackage)
-- `Datasets/Outputs/roads/road_buffers_XXm/road_buffers_XXm.shp` — Final dissolved buffer polygons (Shapefile)
+---
 
-> Note: `XXm` refers to the buffer distance in meters (e.g., `10m` or `20m`).
+## 🗂️ Script Details
 
-### **Features**
-- **Caching**: Skips reprocessing if intermediate files already exist (e.g., intersected or clipped roads).
-- **Progress bars**: Uses `tqdm` to visualize progress during clipping and buffering operations.
-- **Geometry QA**: Automatically warns about CSDs with less than 100 km of road length.
-- **Safe geometry handling**: Uses type checks and fallback matching for `CSDUID` to avoid errors during clipping.
-- **Export compatibility**: Shortens field names where necessary for shapefile compatibility.
+### `urban_csds.py`
 
-### **Use cases**
-- Spatial analysis of transportation-adjacent canopy cover
-- Quantifying road density across urban municipalities
-- Generating inputs for buffer-based canopy metrics in Google Earth Engine
+**Purpose:** Identify and process eligible urban Census Subdivisions (CSDs) across Canada
 
-### **To switch between buffer sizes**
-Change the `BUFFER_DISTANCE_M` variable at the top of the script to either `10` or `20` to regenerate the relevant datasets:
+Consolidates demographic data from the 2021 Census of Population with spatial boundaries and ecological classifications to create a comprehensive dataset of urban municipalities.
+
+#### Key Responsibilities
+
+- Load and merge demographic datasets from the 2021 Census (population, labour, Indigenous identity, visible minorities)
+- Filter CSDs using urban criteria: **≥1,000 population** and **≥400 people/km²**
+- Exclude Indigenous reserves and non-standard CSDs based on naming patterns
+- Handle amalgamated cities by merging geometries (e.g., Lloydminster, Diamond Valley)
+- Assign each urban CSD to a dominant ecozone based on spatial intersection
+- Calculate ecozone coverage percentages and flag CSDs without dominant zones
+- Generate national and regional maps with ecozone boundaries
+- Export outputs in multiple formats (Shapefile, GeoPackage)
+
+#### Inputs
+
+```
+Datasets/Inputs/2021_census_of_population/
+├── population.csv
+├── labour.csv
+├── indigenous_identity.csv
+├── visible_minorities.csv
+└── amalgamated_cities.csv
+
+Datasets/Inputs/census_subdivisions_2021/
+└── census_subdivisions_2021.shp
+
+Datasets/Inputs/ecozone_shp/
+└── ecozones.shp
+
+Datasets/Inputs/provinces/
+└── provinces_simplified_1km.gpkg
+```
+
+#### Outputs
+
+```
+Datasets/Outputs/2021_census_of_population/
+└── 2021_census_of_population_municipalities.csv
+
+Datasets/Outputs/urban_csds/
+├── urban_csds.shp
+├── urban_csds.gpkg
+└── urban_csds_attributes.csv
+
+Datasets/Outputs/urban_csd_centroids/
+├── urban_csd_centroids.shp
+└── urban_csd_centroids.gpkg
+
+figures/eligible_csds/
+├── eligible_csds_nationally.pdf
+├── eligible_csds_british_columbia.pdf
+├── eligible_csds_prairies.pdf
+├── eligible_csds_ontario.pdf
+├── eligible_csds_quebec.pdf
+└── eligible_csds_atlantic_canada.pdf
+```
+
+#### Features
+
+- **Urban Criteria:** Population ≥1,000 and density ≥400 people/km²
+- **Indigenous Exclusion:** Removes CSDs with numeric characters in names plus specific exclusions (PETIT-ROCHER, WENDAKE)
+- **Amalgamation Handling:** Merges geometries for border cities and consolidated municipalities
+- **Ecozone Assignment Logic:**
+  - Single ecozone intersection → direct assignment (100% coverage)
+  - Multiple ecozones → assigns dominant zone if ≥50.01% coverage
+  - Flags CSDs with no dominant ecozone as assignment errors
+- **QA Checks:** Reports filtering results, amalgamation changes, and multi-ecozone CSDs
+
+#### Ecozone Color Scheme
+
+Ecozones are grouped into six categories:
+
+| Group | Ecozones |
+|-------|----------|
+| **Arctic** | Arctic Cordillera, Northern Arctic, Southern Arctic |
+| **Subarctic** | Taiga Shield, Hudson Plain |
+| **Forested** | MixedWood Plain, Boreal Shield, Boreal Plain, Taiga Cordillera, Taiga Plain, Boreal Cordillera |
+| **Mountain** | Montane Cordillera |
+| **Prairie** | Prairie |
+| **Maritime** | Pacific Maritime, Atlantic Maritime |
+
+#### Regional Definitions
+
+Maps are generated for five regions:
+
+- **British Columbia:** PRUID 59
+- **Prairies:** Alberta (48), Saskatchewan (47), Manitoba (46)
+- **Ontario:** PRUID 35
+- **Québec:** PRUID 24
+- **Atlantic Canada:** NL (10), PE (11), NS (12), NB (13)
+
+---
+
+### `roads.py`
+
+**Purpose:** Process the national road network to generate municipality-specific metrics and buffer zones
+
+Creates buffered geometries around road segments for canopy analysis, with configurable buffer distances.
+
+#### Key Responsibilities
+
+- Load and reproject the national road network to match urban CSD coordinate reference system
+- Filter roads to include only segments that intersect urban municipalities
+- Clip road segments to their respective CSD boundaries
+- Compute per-CSD road lengths (in kilometers) and export summary
+- Create road buffers at user-defined distance (default: 20 m)
+- Clip buffered segments to municipal boundaries
+- Dissolve overlapping buffers within each CSD to create contiguous zones
+- Export outputs in GeoPackage and Shapefile formats
+
+#### Inputs
+
+```
+Datasets/Inputs/roads/
+└── roads.shp
+
+Datasets/Outputs/urban_csds/
+└── urban_csds.gpkg
+```
+
+#### Outputs
+
+```
+Datasets/Outputs/roads/
+├── intersecting_roads.gpkg         # Filtered road segments intersecting urban areas
+├── clipped_roads.gpkg              # Roads clipped to CSD boundaries
+├── road_lengths_by_csd.csv         # Total road length (km) per CSD
+└── road_buffers_XXm/               # Buffer outputs (XX = buffer distance)
+    ├── buffered_roads_XXm.gpkg     # Unmerged buffers per segment
+    ├── road_buffers_XXm.gpkg       # Final dissolved buffer polygons (GeoPackage)
+    └── road_buffers_XXm.shp        # Final dissolved buffer polygons (Shapefile)
+```
+
+> **Note:** `XXm` refers to the buffer distance in meters (e.g., `10m` or `20m`)
+
+#### Features
+
+- **Caching:** Skips reprocessing if intermediate files already exist
+- **Progress Tracking:** Uses `tqdm` for visual progress during clipping and buffering
+- **Geometry QA:** Warns about CSDs with less than 100 km of road length
+- **Safe Handling:** Type checks and fallback matching for `CSDUID` to avoid errors
+- **Export Compatibility:** Shortens field names for shapefile compliance
+
+#### Switching Buffer Sizes
+
+Change the `BUFFER_DISTANCE_M` variable at the top of the script:
+
 ```python
 BUFFER_DISTANCE_M = 10  # or 20
 ```
 
-## `canopy_metrics.js`
+Then re-run the script to regenerate datasets for the new buffer distance.
 
-`canopy_metrics.js` is a **Google Earth Engine (GEE)** script that calculates **canopy coverage metrics** for urban areas or road-buffer zones. It processes input geometries in batches to compute total area, canopy area (≥ 2 m), and canopy proportion for each unit.
+---
 
-The script is designed to flexibly use one of the following spatial datasets as input:
-- `urban_csds` — for full municipal areas
-- `road_buffers_10m` — for 10-metre road buffer zones
-- `road_buffers_20m` — for 20-metre road buffer zones
+### `canopy_metrics.js`
 
-### **High-level responsibilities**
-- Load the selected spatial input layer (`road_buffers_10m`, `road_buffers_20m`, or `urban_csds`) from GEE assets.
-- Exclude any user-defined CSDUIDs (if applicable).
-- Load and mosaic the Meta 1-m Canopy Height Model.
-- Reproject all data to the **Statistics Canada Lambert projection (EPSG:3347)**.
-- Create a binary canopy mask (`1` if canopy height ≥ 2 m, else `0`).
-- Divide the input dataset into **batches** for scalable processing (e.g., 50 features per batch).
-- For each feature in the current batch:
-  - Compute total area and canopy area in square kilometers.
-  - Calculate the canopy proportion as a percentage.
-  - Append these metrics as new attributes.
-- Display QA layers and export each batch of results to CSV.
+**Purpose:** Calculate canopy coverage metrics using Google Earth Engine
 
-### **Batching logic**
-- The script processes a subset of features per run, using a `batchNumber` and `batchSize` to control the range.
-- You must manually increment `batchNumber` for each export.
+A GEE script that processes input geometries in batches to compute total area, canopy area (≥2 m), and canopy proportion for each spatial unit.
 
-### **Primary inputs**
-- One of:
-  - `projects/heroic-glyph-383701/assets/urban_csds`
-  - `projects/heroic-glyph-383701/assets/road_buffers_10m`
-  - `projects/heroic-glyph-383701/assets/road_buffers_20m`
-- Canopy height model:  
-  `projects/meta-forest-monitoring-okw37/assets/CanopyHeight`
+#### Key Responsibilities
 
-### **Primary outputs**
-- Exported CSV with columns:  
-  `CSDUID`, `total_area_km2`, `canopy_area_km2`, `canopy_proportion`
-- Filenames follow the format:  
-  `canopy_cover_road_buffer_batch_<batchNumber>.csv`
+- Load selected spatial input layer from GEE assets:
+  - `urban_csds` — full municipal areas
+  - `road_buffers_10m` — 10-metre road buffer zones
+  - `road_buffers_20m` — 20-metre road buffer zones
+- Exclude user-defined CSDUIDs (if applicable)
+- Load and mosaic the Meta 1-m Canopy Height Model
+- Reproject all data to Statistics Canada Lambert projection (EPSG:3347)
+- Create binary canopy mask (1 if canopy height ≥2 m, else 0)
+- Divide input dataset into batches for scalable processing
+- For each feature in current batch:
+  - Compute total area and canopy area in square kilometers
+  - Calculate canopy proportion as percentage
+  - Append metrics as new attributes
+- Display QA layers and export results to CSV
 
-### **Key variables in the script**
-- `excludeList`: Optional array of CSDUIDs to exclude  
-- `batchSize`: Number of features to process at once (e.g., 50)  
-- `batchNumber`: Current batch index (starting at 0)  
+#### Batching Logic
 
-### **Optional QA displays**
-- Binary canopy raster (`green`)
-- Input geometry layers: full vs. current batch (`blue` and `red`)
+The script processes features in batches to avoid computation limits:
 
-## `urban_csds.py`
+- **Batch Size:** Number of features per run (e.g., 50)
+- **Batch Number:** Current batch index (starting at 0)
+- **Manual Increment:** You must update `batchNumber` for each export
 
-`urban_csds.py` identifies and processes eligible urban Census Subdivisions (CSDs) across Canada by applying population and density thresholds, handling municipal amalgamations, assigning ecozones, and generating spatial outputs and regional maps. It consolidates demographic data from the 2021 Census of Population with spatial boundaries and ecological classifications to create a comprehensive dataset of urban municipalities.
+#### Inputs
 
-### **High-level responsibilities**
-- Load and merge demographic datasets from the 2021 Census of Population (population, labour, Indigenous identity, visible minorities).
-- Filter CSDs to retain only urban municipalities (≥1,000 population and ≥400 people/km²).
-- Exclude Indigenous reserves and non-standard CSDs based on naming patterns.
-- Handle amalgamated cities by merging geometries and replacing original entries (e.g., Lloydminster, Diamond Valley).
-- Assign each urban CSD to a dominant ecozone based on spatial intersection and area coverage.
-- Calculate ecozone coverage percentages and flag CSDs without a dominant zone (< 50.01% coverage).
-- Generate national and regional maps showing eligible CSDs and ecozone boundaries.
-- Export spatial outputs in multiple formats (Shapefile, GeoPackage) with both full polygons and centroids.
+**Spatial layers** (choose one):
+```
+projects/heroic-glyph-383701/assets/urban_csds
+projects/heroic-glyph-383701/assets/road_buffers_10m
+projects/heroic-glyph-383701/assets/road_buffers_20m
+```
 
-### **Primary inputs**
-- `Datasets/Inputs/2021_census_of_population/population.csv`
-- `Datasets/Inputs/2021_census_of_population/labour.csv`
-- `Datasets/Inputs/2021_census_of_population/indigenous_identity.csv`
-- `Datasets/Inputs/2021_census_of_population/visible_minorities.csv`
-- `Datasets/Inputs/2021_census_of_population/amalgamated_cities.csv`
-- `Datasets/Inputs/census_subdivisions_2021/census_subdivisions_2021.shp`
-- `Datasets/Inputs/ecozone_shp/ecozones.shp`
-- `Datasets/Inputs/provinces/provinces_simplified_1km.gpkg`
+**Canopy height model:**
+```
+projects/meta-forest-monitoring-okw37/assets/CanopyHeight
+```
 
-### **Primary outputs**
-- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv` — Filtered demographic data for urban CSDs
-- `Datasets/Outputs/urban_csds/urban_csds.shp` — Urban CSD polygons (Shapefile format)
-- `Datasets/Outputs/urban_csds/urban_csds.gpkg` — Urban CSD polygons (GeoPackage format)
-- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.shp` — Urban CSD centroids (Shapefile format)
-- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg` — Urban CSD centroids (GeoPackage format)
-- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv` — Attribute table with ecozone assignments
-- `figures/eligible_csds/eligible_csds_nationally.pdf` — National map of eligible CSDs with ecozones
-- `figures/eligible_csds/eligible_csds_[region].pdf` — Regional maps for British Columbia, Prairies, Ontario, Québec, and Atlantic Canada
+#### Outputs
 
-### **Features**
-- **Urban criteria**: Filters for population ≥1,000 and density ≥400 people/km²
-- **Indigenous exclusion**: Removes CSDs with numeric characters in names (reserves) plus specific exclusions (PETIT-ROCHER, WENDAKE)
-- **Amalgamation handling**: Merges geometries for Lloydminster (SK/AB border city) and Diamond Valley (Black Diamond + Turner Valley)
-- **Ecozone assignment logic**:
-  - Single ecozone intersection → direct assignment (100% coverage)
-  - Multiple ecozones → assigns dominant zone if ≥50.01% coverage
-  - Flags CSDs with no dominant ecozone as assignment errors
-- **Data type harmonization**: Ensures consistent dtypes between main dataset and amalgamated cities before concatenation
-- **Duplicate detection**: Validates no duplicate CSDUIDs exist after amalgamation
-- **Field name compatibility**: Shortens column names for Shapefile exports (10-character limit)
-- **Custom visualization**: Uses grouped ecozone color scheme with contextily basemaps for multi-ecozone CSDs
+CSV files with columns: `CSDUID`, `total_area_km2`, `canopy_area_km2`, `canopy_proportion`
 
-### **Ecozone color scheme**
-Ecozones are organized into six groups with custom colors:
-- **Arctic**: Arctic Cordillera, Northern Arctic, Southern Arctic
-- **Subarctic**: Taiga Shield, Hudson Plain
-- **Forested**: MixedWood Plain, Boreal Shield, Boreal Plain, Taiga Cordillera, Taiga Plain, Boreal Cordillera
-- **Mountain**: Montane Cordillera
-- **Prairie**: Prairie
-- **Maritime**: Pacific Maritime, Atlantic Maritime
+Filename format: `canopy_cover_road_buffer_batch_<batchNumber>.csv`
 
-### **Regional definitions**
-Maps are generated for five regions based on PRUID codes:
-- **British Columbia**: 59
-- **Prairies**: 48 (Alberta), 47 (Saskatchewan), 46 (Manitoba)
-- **Ontario**: 35
-- **Québec**: 24
-- **Atlantic Canada**: 10 (Newfoundland and Labrador), 11 (Prince Edward Island), 12 (Nova Scotia), 13 (New Brunswick)
+#### Key Variables
 
-### **QA checks and reporting**
-- Reports total CSDs before and after filtering
-- Lists CSDUIDs removed for amalgamation and rows added
-- Identifies and maps CSDs spanning multiple ecozones
-- Flags CSDs with no dominant ecozone (< 50% coverage by any single zone)
-- Prints summary tables showing ecozone assignments and coverage percentages
+```javascript
+excludeList  // Optional array of CSDUIDs to exclude
+batchSize    // Number of features per batch (e.g., 50)
+batchNumber  // Current batch index (starting at 0)
+```
 
-### **Use cases**
-- Identifying eligible municipalities for urban forest analysis
-- Linking demographic characteristics with ecological regions
-- Producing cartographic outputs for reports and publications
-- Providing base spatial layers for canopy cover analysis pipelines
+#### Optional QA Displays
 
-## `dataset_merge.py`
+- Binary canopy raster (green)
+- Input geometry layers: full vs. current batch (blue and red)
 
-`dataset_merge.py` consolidates all final project outputs into a single tabular dataset for modeling, statistical analysis, or visualization. It merges spatial attributes, road metrics, canopy metrics, and demographic indicators into a unified table, standardizes naming, and performs QA checks on key fields such as ecozone assignment.
+---
 
-### **High-level responsibilities**
-- Load the following datasets:
-  - Urban CSD attributes (`urban_csds_attributes.csv`)
-  - Road length summaries (`road_lengths_by_csd.csv`)
-  - Canopy metrics for full CSDs (`canopy_cover_csd.csv`)
-  - Canopy metrics for 10 m and 20 m road buffer zones
+### `dataset_merge.py`
+
+**Purpose:** Consolidate all project outputs into a unified dataset
+
+Merges spatial attributes, road metrics, canopy metrics, and demographic indicators into a single table for analysis.
+
+#### Key Responsibilities
+
+- Load datasets:
+  - Urban CSD attributes
+  - Road length summaries
+  - Canopy metrics for CSDs and buffer zones (10 m and 20 m)
   - 2021 Census of Population for urban municipalities
-- Add suffixes to column names in canopy tables to prevent name conflicts:
+- Add suffixes to column names to prevent conflicts:
   - `_csd`, `_10m_buffer`, `_20m_buffer`
-- Perform inner joins across all datasets on `CSDUID` to ensure complete alignment.
+- Perform inner joins across all datasets on `CSDUID`
 - Check for:
-  - Mismatches in `CSDNAME_x` and `CSDNAME_y`
+  - Mismatches in `CSDNAME` fields
   - Rows with `dominant_ecozone` ≠ `"Yes"`
-- Drop `dominant_ecozone` if all values are `"Yes"`, otherwise preserve for transparency.
-- Rename columns for clarity and consistency.
-- Output the final merged dataset as a single CSV file.
+- Drop or preserve `dominant_ecozone` based on QA results
+- Rename columns for clarity
+- Export final merged dataset
 
-### **Primary inputs**
-- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv`
-- `Datasets/Outputs/roads/road_lengths_by_csd.csv`
-- `Datasets/Outputs/gee_export/canopy_cover_csd.csv`
-- `Datasets/Outputs/gee_export/canopy_cover_road_buffers_10m.csv`
-- `Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv`
-- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv`
+#### Inputs
 
-### **Primary output**
-- `Datasets/Outputs/Canadian_urban_forest_census_independent_variables.csv`  
-  A comprehensive table combining spatial, ecological, and demographic metrics for all urban municipalities.
+```
+Datasets/Outputs/urban_csds/
+└── urban_csds_attributes.csv
 
-### **Field QA and logic**
-- Performs a QA check to detect any CSDs without a dominant ecozone (i.e., those with < 50.01% coverage by any single zone).
-- Confirms column renaming only applies to fields present in the data, and warns about any remaining raw columns.
-- Handles discrepancies in duplicate name fields (e.g., `CSDNAME_x` vs. `CSDNAME_y`) with optional cleanup.
+Datasets/Outputs/roads/
+└── road_lengths_by_csd.csv
 
-### **Use cases**
+Datasets/Outputs/gee_export/
+├── canopy_cover_csd.csv
+├── canopy_cover_road_buffers_10m.csv
+└── canopy_cover_road_buffers_20m.csv
+
+Datasets/Outputs/2021_census_of_population/
+└── 2021_census_of_population_municipalities.csv
+```
+
+#### Output
+
+```
+Datasets/Outputs/
+└── Canadian_urban_forest_census_independent_variables.csv
+```
+
+A comprehensive table combining spatial, ecological, and demographic metrics for all urban municipalities.
+
+#### QA Checks
+
+- Detects CSDs without dominant ecozone (< 50.01% coverage)
+- Confirms column renaming for fields present in data
+- Handles discrepancies in duplicate name fields
+- Warns about remaining raw columns
+
+#### Use Cases
+
 - Regression modeling of urban canopy cover
 - Equity assessments of green infrastructure
 - Geospatial correlation analyses
 - Dashboard or report-ready data publishing
+
+---
+
+## 🔄 Processing Workflow
+
+```
+1. urban_csds.py
+   ↓ Identifies eligible municipalities
+   ↓ Assigns ecozones
+   
+2. roads.py
+   ↓ Processes road network
+   ↓ Creates buffer zones
+   
+3. canopy_metrics.js (Google Earth Engine)
+   ↓ Calculates canopy metrics
+   ↓ Processes in batches
+   
+4. dataset_merge.py
+   ↓ Consolidates all outputs
+   ↓ Final dataset ready for analysis
+```
+
+---
+
+## 📦 Dependencies
+
+### Python Libraries
+- `geopandas`, `pandas`, `numpy`
+- `shapely`, `pyproj`
+- `matplotlib`, `contextily`
+- `tqdm`
+
+### External Tools
+- Google Earth Engine (for `canopy_metrics.js`)
+
+---
+
+## 📝 Notes
+
+- All spatial data uses EPSG:3347 (Statistics Canada Lambert Conformal Conic)
+- Road buffer distances can be switched by modifying `BUFFER_DISTANCE_M` in `roads.py`
+- GEE batch processing requires manual increment of `batchNumber` for each export
+- Final merged dataset includes suffixes to distinguish canopy metrics by spatial unit
