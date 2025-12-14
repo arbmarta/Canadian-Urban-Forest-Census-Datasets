@@ -268,3 +268,52 @@ This output contains only urban, non-Indigenous municipalities and is suitable f
 - Equity assessments of green infrastructure
 - Geospatial correlation analyses
 - Dashboard or report-ready data publishing
+
+## `mapping.py`
+
+`mapping.py` creates a set of **national and regional participation maps** for the Canadian Urban Forest Census. These maps show which municipalities are participating in the survey, overlaid on ecozones and provincial boundaries. The script uses predefined CSDUIDs to identify participating communities and generates publication-quality maps in PDF format.
+
+### **High-level responsibilities**
+- Load input geospatial data:
+  - Urban municipality centroids (`urban_csd_centroids.gpkg`)
+  - Simplified province boundaries
+  - National ecozone layer
+- Standardize and align coordinate reference systems (CRS) across datasets.
+- Identify participating municipalities from a hardcoded list of CSDUIDs.
+- Classify municipalities as:
+  - **Participating** (red points)
+  - **Eligible but not participating** (black points)
+- Color and group ecozones by region for improved map readability.
+- Create and export:
+  - A **national map** with ecozones and participation status
+  - Five **regional maps**:
+    - British Columbia
+    - Prairies
+    - Ontario
+    - Québec
+    - Atlantic Canada
+
+### **Legend structure**
+- Grouped ecozones (e.g., "Forested", "Prairie", "Maritime") with distinct colors
+- Municipality participation status (Eligible / Participating)
+
+### **Primary inputs**
+- `Datasets/Inputs/provinces/provinces_simplified_1km.gpkg`
+- `Datasets/Inputs/ecozone_shp/ecozones.shp`
+- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg`
+
+### **Primary outputs**
+- `Figures/Survey participation - national.pdf`
+- `Figures/Survey participation - [region].pdf` for each defined region
+
+### **Features**
+- Automatically detects and fixes naming mismatches (e.g., `"Boreal PLain"` → `"Boreal Plain"`).
+- Handles coordinate reprojection and geometry clipping to provincial boundaries.
+- Produces print-quality figures using `matplotlib` and `geopandas`, with styled legends and layouts.
+- Legends are dynamically built to only include ecozones present in each region.
+- Prints diagnostic summaries for matched CSDUIDs and potential mismatches.
+
+### **Use cases**
+- Visual summary of municipal participation across Canada
+- Supporting figures for reports, presentations, or publications
+- QA verification of geographic coverage in survey efforts
