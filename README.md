@@ -43,6 +43,8 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **intersecting_roads** | .gpkg | `roads.py` | Polylines | Road features that intersect any urban CSD, produced via spatial filtering. |
 | **clipped_roads** | .gpkg | `roads.py` | Polylines | Road segments clipped to individual urban CSD boundaries (used to compute lengths). |
 | **buffered_roads** | .gpkg | `roads.py` | Polygons | 20 m buffered road segments per CSD prior to dissolving overlaps. |
+| **10m_buffers/export \*** | .csv | `canopy_metrics.js` | Tabular | Intermediate GEE CSV exports representing canopy coverage in 10-m road buffer zones, organized in batches for parallel processing. |
+| **20m_buffers/export \*** | .csv | `canopy_metrics.js` | Tabular | Intermediate GEE CSV exports representing canopy coverage in 20-m road buffer zones, organized in batches for parallel processing. |
 
 ## Output Datasets
 
