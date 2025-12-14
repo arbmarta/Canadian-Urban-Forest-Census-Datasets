@@ -2,8 +2,6 @@ from functools import reduce
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from shapely.ops import unary_union
-import contextily as ctx
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
@@ -133,7 +131,7 @@ csd_shp['CSDUID'] = csd_shp['CSDUID'].astype(str)
 # Merge Lloydminster
 lloyd_rows = csd_shp[csd_shp['CSDUID'].isin(lloydminster)]
 lloyd_merged = lloyd_rows.iloc[0].copy()
-lloyd_merged['geometry'] = unary_union(lloyd_rows.geometry)
+lloyd_merged['geometry'] = lloyd_rows.geometry.union_all()
 lloyd_merged['CSDNAME'] = 'Lloydminster'
 lloyd_merged['CSDUID'] = '4810039'
 csd_shp = csd_shp[~csd_shp['CSDUID'].isin(lloydminster)]
@@ -143,7 +141,7 @@ csd_shp = gpd.GeoDataFrame(pd.concat([csd_shp, gpd.GeoDataFrame([lloyd_merged], 
 # Merge Black Diamond + Turner Valley -> Diamond Valley
 bd_rows = csd_shp[csd_shp['CSDUID'].isin(black_diamond)]
 bd_merged = bd_rows.iloc[0].copy()
-bd_merged['geometry'] = unary_union(bd_rows.geometry)
+bd_merged['geometry'] = bd_rows.geometry.union_all()
 bd_merged['CSDNAME'] = 'Diamond Valley'
 bd_merged['CSDUID'] = '4806011'
 csd_shp = csd_shp[~csd_shp['CSDUID'].isin(black_diamond)]
@@ -337,9 +335,6 @@ print(f"Saved attribute table to: {csv_path}")
 
 #endregion
 
-## ----------------------------------------- MAP CSDs WITHIN MULTIPLE ECOZONES -----------------------------------------
-#region
-
 # Define ecozone colours organized by groups
 ecozone_groups = {
     'Arctic': {
@@ -370,6 +365,10 @@ ecozone_groups = {
         'Atlantic Maritime': '#1da2d8',
     }
 }
+
+"""
+## ----------------------------------------- MAP CSDs WITHIN MULTIPLE ECOZONES -----------------------------------------
+#region
 
 # Flatten the dictionary for plotting
 ecozone_colours = {zone: color for group in ecozone_groups.values() for zone, color in group.items()}
@@ -453,12 +452,13 @@ else:
     print("\nNo CSDs span multiple ecozone - no maps to generate.\n")
 
 #endregion
+"""
 
 ## ----------------------------------------- MAP THE URBAN CSDs WITH ECOZONES ------------------------------------------
 #region
 
 # Create figure and axis
-fig, ax = plt.subplots(figsize=(15, 10))
+fig, ax = plt.subplots(figsize=(16, 10))
 
 # Plot provinces as base layer (with edges)
 provinces_gdf.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=1.5)
@@ -508,17 +508,11 @@ for group_name, zones in ecozone_groups.items():
 # Add a separator
 combined_legend_elements.append(Patch(facecolor='none', edgecolor='none', label=''))
 
-# Add municipality section header (bold)
-combined_legend_elements.append(Patch(facecolor='none', edgecolor='none',
-                                     label='$\\bf{Municipalities}$'))
-
-# Add municipality legend elements
-combined_legend_elements.extend([
+# Add municipality legend element
+combined_legend_elements.append(
     Line2D([0], [0], marker='o', color='w', markerfacecolor='black',
-           markersize=10, alpha=0.6, label='  Eligible'),
-    Line2D([0], [0], marker='o', color='w', markerfacecolor='red',
-           markersize=12, alpha=0.8, label='  Participating')
-])
+           markersize=10, alpha=0.6, label='$\\bf{Eligible\\ Municipality}$')
+)
 
 # Add the combined legend
 ax.legend(handles=combined_legend_elements,
@@ -566,15 +560,11 @@ def create_legend_elements(ecozone_in_region):
     # Add separator
     legend_elements.append(Patch(facecolor='none', edgecolor='none', label=''))
 
-    # Add municipality section
-    legend_elements.append(Patch(facecolor='none', edgecolor='none',
-                                 label='$\\bf{Municipalities}$'))
-    legend_elements.extend([
+    # Add municipality legend element
+    legend_elements.append(
         Line2D([0], [0], marker='o', color='w', markerfacecolor='black',
-               markersize=10, alpha=0.6, label='  Eligible'),
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='red',
-               markersize=12, alpha=0.8, label='  Participating')
-    ])
+               markersize=10, alpha=0.6, label='$\\bf{Eligible\\ Municipality}$')
+    )
 
     return legend_elements
 
@@ -588,14 +578,14 @@ for region_name, pruid_list in regions.items():
         print(f"Warning: No provinces found for {region_name}")
         continue
 
-    # Filter ecozone by PRUID
-    region_ecozone = ecozone[ecozone['PRUID'].isin(pruid_list)]
+    # Filter ecozone by spatial intersection with region provinces
+    region_ecozone = ecozone[ecozone.geometry.intersects(region_provinces.union_all())]
 
     # Filter communities by PRUID
     region_communities = centroids_gpkg[centroids_gpkg['PRUID'].isin(pruid_list)]
 
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(15, 10))
+    fig, ax = plt.subplots(figsize=(16, 9))
 
     # Plot provinces as base layer
     region_provinces.plot(ax=ax,
@@ -618,11 +608,11 @@ for region_name, pruid_list in regions.items():
                                 edgecolor='darkgray',
                                 linewidth=0.5)
 
-    # Plot CSDs
-    centroids_gpkg.plot(ax=ax,
-                        color='black',
-                        markersize=25,
-                        alpha=0.7)
+    # Plot CSDs for this region only
+    region_communities.plot(ax=ax,
+                           color='black',
+                           markersize=60,
+                           alpha=0.7)
 
     # Create and add legend (without title)
     legend_elements = create_legend_elements(ecozone_in_region)
