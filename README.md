@@ -1,9 +1,16 @@
-# Description
-This repository houses all datasets and processing scripts used in the Canadian Urban Forest Census (2025). The project integrates municipal boundaries, national roadway infrastructure, ecozone classifications, and high-resolution canopy data to build a comprehensive geospatial framework for analyzing urban forest conditions across Canada. 
+## Description
 
-The workflow begins by identifying and preparing all qualifying urban Census Subdivisions (CSDs), applying Statistics Canada’s urban criteria along with essential administrative edits. These standardized urban polygons serve as the foundation for additional spatial products, including centroid point layers, ecozone assignments, clipped road networks, and dissolved 20-metre road-buffer geometries.
+This repository houses all datasets, scripts, and workflows used in the **Canadian Urban Forest Census (2025)**. The project integrates municipal boundaries, national roadway infrastructure, ecozone classifications, high-resolution canopy data, and census demographics to build a comprehensive geospatial framework for assessing urban forest conditions across Canada.
 
-Using high-resolution Meta 1-m Canopy Height data, the project then derives canopy metrics for each urban CSD as well as for road-adjacent buffer zones, enabling assessment of canopy distribution both across municipalities and within transportation corridors. The repository captures every stage of this workflow—from raw inputs to final analytical outputs—to ensure complete transparency, reproducibility, and scalability for future urban forest assessments.
+The workflow begins by identifying all qualifying urban Census Subdivisions (CSDs), using Statistics Canada’s urban criteria and applying targeted administrative adjustments (e.g., amalgamations and exclusions). These finalized urban polygons form the foundation for all subsequent spatial products, including centroid point layers, ecozone assignments, clipped road networks, and dissolved road buffer geometries (10 m and 20 m).
+
+Using Meta’s 1-m Canopy Height Model, the project computes detailed canopy metrics at multiple spatial scales:
+- Across full urban CSDs
+- Within 10 m and 20 m transportation buffer zones
+
+Outputs include road-length summaries, ecozone coverage statistics, and merged demographic attributes, enabling integrated analyses of tree cover, equity, infrastructure, and ecological region.
+
+The repository captures every stage of this workflow—from raw input data to final analytical tables—to ensure transparency, reproducibility, and scalability for future urban forest research and policy development.
 
 # Determining Urban Areas
 To determine urban municipalities, we use census subdivisions, which is Statistics Canada's dataset of municipal boundaries. We selected census subdivisions that meet the definition of urban used by Statistics Canada:
