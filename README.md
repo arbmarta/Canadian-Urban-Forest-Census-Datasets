@@ -28,12 +28,12 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **ecozones** | .shp | `census_subdivisions.py` | Polygons | National ecozone boundary file used for intersecting and assigning each CSD to an ecozone. Must contain `ZONE_NAME`. |
 | **roads** | .shp; .gpkg | `roads.py` | Polylines | Intercensal 2024 road network used for clipping and buffering road segments. |
 | **meta_canopy_height_model** | EE Asset | `canopy_metrics.js` | Raster (1 m resolution) | Meta 1-m Canopy Height Model used to generate canopy ≥ 2 m binary layers and calculate canopy coverage metrics. |
-| **provinces_simplified_1km.gpkg** | .gpkg | *(not currently referenced)* | Polygons | Generalized provincial boundaries for optional cartographic or reference purposes. Not directly used in core processing scripts. |
-| **amalgamated_cities.csv** | .csv | *(not currently referenced)* | Tabular | Lookup table of municipal amalgamations used in Census 2021. May support QA or historical alignment. |
-| **indigenous_identity.csv** | .csv | *(not currently referenced)* | Tabular | Census 2021 counts of Indigenous identity by CSD. Potential future use for exclusion, analysis, or mapping. |
-| **labour.csv** | .csv | *(not currently referenced)* | Tabular | Labour force statistics from Census 2021 by CSD. May support socioeconomic analyses of urban forests. |
-| **population.csv** | .csv | *(not currently referenced)* | Tabular | Population counts and densities from Census 2021. May duplicate or supplement existing metrics. |
-| **visible_minorities.csv** | .csv | *(not currently referenced)* | Tabular | Demographic distribution of visible minority groups by CSD. May support future equity-focused analyses. |
+| **provinces_simplified_1km.gpkg** | .gpkg | `mapping.py` | Polygons | Generalized provincial boundaries for optional cartographic or reference purposes. Not directly used in core processing scripts. |
+| **amalgamated_cities.csv** | .csv | `census_of_population.py` | Tabular | Lookup table of municipal amalgamations used in Census 2021. May support QA or historical alignment. |
+| **indigenous_identity.csv** | .csv | `census_of_population.py` | Tabular | Census 2021 counts of Indigenous identity by CSD. Potential future use for exclusion, analysis, or mapping. |
+| **labour.csv** | .csv | `census_of_population.py` | Tabular | Labour force statistics from Census 2021 by CSD. May support socioeconomic analyses of urban forests. |
+| **population.csv** | .csv | `census_of_population.py` | Tabular | Population counts and densities from Census 2021. May duplicate or supplement existing metrics. |
+| **visible_minorities.csv** | .csv | `census_of_population.py` | Tabular | Demographic distribution of visible minority groups by CSD. May support future equity-focused analyses. |
 
 ## Temporary Outputs  
 *(Intermediate datasets created for efficiency or reuse, but not final products)*
