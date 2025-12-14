@@ -167,7 +167,7 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 Change the `BUFFER_DISTANCE_M` variable at the top of the script to either `10` or `20` to regenerate the relevant datasets:
 ```python
 BUFFER_DISTANCE_M = 10  # or 20
-
+```
 
 ## `canopy_metrics.js`
 
