@@ -52,12 +52,15 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 |-----------|-----------|----------------|-------------|----------------|-------------|
 | **urban_csds** | .shp; .gpkg | `census_subdivisions.py` | Census Subdivision Boundary File (2021) | Polygons | Final processed polygons representing 343 non-Indigenous urban census subdivisions. |
 | **urban_csd_centroids** | .shp; .gpkg | `census_subdivisions.py` | `urban_csds.gpkg` | Points | Centroids generated from the final urban census subdivision polygons. |
-| **urban_csds_attributes** | .csv | `census_subdivisions.py` | `urban_csds.gpkg` | Tabular | Attribute table containing CSDUID, CSDNAME, land area, assigned ecozone, dominance status, and percent ecozone coverage. |
-| **clipped_roads** | .shp; .gpkg | `roads.py` | 2024 Intercensal Road Network File | Polylines | Road network features clipped to urban census subdivision boundaries. |
-| **road_buffers** | .shp; .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Final dissolved 20 m buffer polygons representing buffered road segments within each urban census subdivision. |
-| **road_lengths_by_csd** | .csv | `roads.py` | `clipped_roads.gpkg` | Tabular | Summarized road lengths (km) for each urban census subdivision. |
-| **canopy_metrics_urban_csds** | .csv | `canopy_metrics.js` | `urban_csds` | Tabular | Canopy area (km²) and canopy percentage for each urban census subdivision based on Meta 1-m canopy height data. |
-| **canopy_metrics_road_buffers** | .csv | `canopy_metrics.js` | `road_buffers` | Tabular | Canopy area (km²) and canopy percentage within dissolved 20 m road-buffer zones for each CSD. |
+| **urban_csds_attributes.csv** | .csv | `census_subdivisions.py` | `urban_csds.gpkg` | Tabular | Attribute table containing CSDUID, CSDNAME, land area, assigned ecozone, dominance status, and percent ecozone coverage. |
+| **clipped_roads.gpkg** | .gpkg | `roads.py` | 2024 Intercensal Road Network File | Polylines | Road network features clipped to urban census subdivision boundaries. |
+| **road_buffers_20m.gpkg** | .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Final dissolved 20 m buffer polygons representing buffered road segments within each urban census subdivision. |
+| **road_buffers_10m.gpkg** | .gpkg | `roads.py` | `clipped_roads.gpkg` | Polygons | Optional dissolved 10 m buffer polygons for comparative or sensitivity analyses. |
+| **road_lengths_by_csd.csv** | .csv | `roads.py` | `clipped_roads.gpkg` | Tabular | Summarized road lengths (km) for each urban census subdivision. |
+| **canopy_cover_csd.csv** | .csv | `canopy_metrics.js` | `urban_csds` | Tabular | Canopy area (km²) and canopy percentage for each urban census subdivision based on Meta 1-m canopy height data. |
+| **canopy_cover_road_buffers_20m.csv** | .csv | `canopy_metrics.js` | `road_buffers_20m.gpkg` | Tabular | Canopy area (km²) and canopy percentage within 20-m dissolved road-buffer zones for each CSD. |
+| **canopy_cover_road_buffers_10m.csv** | .csv | `canopy_metrics.js` | `road_buffers_10m.gpkg` | Tabular | Canopy area (km²) and canopy percentage within 10-m dissolved road-buffer zones for each CSD. |
+| **Canadian_urban_forest_census_independent_variables.csv** | .csv | `merged_datasets.py` | Aggregated outputs | Tabular | Merged dataset containing key urban forest and infrastructure variables for statistical or regression analysis. |
 
 # Scripts
 ## `census_subdivisions.py`
