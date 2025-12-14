@@ -224,3 +224,47 @@ This output contains only urban, non-Indigenous municipalities and is suitable f
 - Amalgamated municipalities are inserted with type and schema consistency.
 - Output rows are verified to be unique by `CSDUID`.
 - This script does not generate any spatial datasets — it is tabular only.
+
+## `dataset_merge.py`
+
+`dataset_merge.py` consolidates all final project outputs into a single tabular dataset for modeling, statistical analysis, or visualization. It merges spatial attributes, road metrics, canopy metrics, and demographic indicators into a unified table, standardizes naming, and performs QA checks on key fields such as ecozone assignment.
+
+### **High-level responsibilities**
+- Load the following datasets:
+  - Urban CSD attributes (`urban_csds_attributes.csv`)
+  - Road length summaries (`road_lengths_by_csd.csv`)
+  - Canopy metrics for full CSDs (`canopy_cover_csd.csv`)
+  - Canopy metrics for 10 m and 20 m road buffer zones
+  - 2021 Census of Population for urban municipalities
+- Add suffixes to column names in canopy tables to prevent name conflicts:
+  - `_csd`, `_10m_buffer`, `_20m_buffer`
+- Perform inner joins across all datasets on `CSDUID` to ensure complete alignment.
+- Check for:
+  - Mismatches in `CSDNAME_x` and `CSDNAME_y`
+  - Rows with `dominant_ecozone` ≠ `"Yes"`
+- Drop `dominant_ecozone` if all values are `"Yes"`, otherwise preserve for transparency.
+- Rename columns for clarity and consistency.
+- Output the final merged dataset as a single CSV file.
+
+### **Primary inputs**
+- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv`
+- `Datasets/Outputs/roads/road_lengths_by_csd.csv`
+- `Datasets/Outputs/gee_export/canopy_cover_csd.csv`
+- `Datasets/Outputs/gee_export/canopy_cover_road_buffers_10m.csv`
+- `Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv`
+- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv`
+
+### **Primary output**
+- `Datasets/Outputs/Canadian_urban_forest_census_independent_variables.csv`  
+  A comprehensive table combining spatial, ecological, and demographic metrics for all urban municipalities.
+
+### **Field QA and logic**
+- Performs a QA check to detect any CSDs without a dominant ecozone (i.e., those with < 50.01% coverage by any single zone).
+- Confirms column renaming only applies to fields present in the data, and warns about any remaining raw columns.
+- Handles discrepancies in duplicate name fields (e.g., `CSDNAME_x` vs. `CSDNAME_y`) with optional cleanup.
+
+### **Use cases**
+- Regression modeling of urban canopy cover
+- Equity assessments of green infrastructure
+- Geospatial correlation analyses
+- Dashboard or report-ready data publishing
