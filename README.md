@@ -156,3 +156,44 @@ The script is designed to flexibly use one of the following spatial datasets as 
 ### **Optional QA displays**
 - Binary canopy raster (`green`)
 - Input geometry layers: full vs. current batch (`blue` and `red`)
+
+## `census_of_population.py`
+
+`census_of_population.py` prepares demographic attributes for all urban municipalities used in the Canadian Urban Forest Census. It integrates key Census 2021 indicators (population, labour force, Indigenous identity, visible minorities), applies municipal amalgamations, filters for urban and non-Indigenous communities, and produces a single tabular output for analysis.
+
+This script is intended to support future demographic and equity-based extensions to urban forest research. It runs independently of the core geospatial pipeline.
+
+### **High-level responsibilities**
+- Load and merge four Census 2021 demographic files:
+  - `population.csv`
+  - `labour.csv`
+  - `indigenous_identity.csv`
+  - `visible_minorities.csv`
+- Drop redundant columns and merge all dataframes on `CSDUID`.
+- Apply amalgamations using `amalgamated_cities.csv`:
+  - Drop disaggregated CSDs
+  - Add merged records with harmonized structure
+  - Validate CSDUID uniqueness after concatenation
+- Filter dataset to include only urban, non-Indigenous municipalities:
+  - `Population ≥ 1,000`
+  - `Density ≥ 400 persons/km²`
+  - Exclude any CSDs with names matching `"PETIT-ROCHER"`, `"WENDAKE"`, or containing digits
+- Validate that amalgamated cities are retained in the final output.
+- Save filtered dataset to a single CSV for use in downstream analysis.
+
+### **Primary inputs**
+- `Datasets/Inputs/2021_census_of_population/population.csv`
+- `Datasets/Inputs/2021_census_of_population/labour.csv`
+- `Datasets/Inputs/2021_census_of_population/indigenous_identity.csv`
+- `Datasets/Inputs/2021_census_of_population/visible_minorities.csv`
+- `Datasets/Inputs/2021_census_of_population/amalgamated_cities.csv`
+
+### **Primary output**
+- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv`
+
+This output contains only urban, non-Indigenous municipalities and is suitable for merging with geospatial outputs or independent regression modeling.
+
+### **Key notes**
+- Amalgamated municipalities are inserted with type and schema consistency.
+- Output rows are verified to be unique by `CSDUID`.
+- This script does not generate any spatial datasets — it is tabular only.
