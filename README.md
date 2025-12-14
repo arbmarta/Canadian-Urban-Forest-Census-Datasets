@@ -70,57 +70,6 @@ Additional edits were performed after excluding non-urban and Indigenous census 
 | **Canadian_urban_forest_census_independent_variables.csv** | .csv | `merged_datasets.py` | Aggregated outputs | Tabular | Merged dataset containing key urban forest and infrastructure variables for statistical or regression analysis. |
 
 # Scripts
-## `census_subdivisions.py`
-
-`census_subdivisions.py` processes the national Census Subdivision (CSD) boundary file to create the final set of urban municipalities used in the Canadian Urban Forest Census. It applies Statistics Canada’s urban definition, handles inter-municipal amalgamations, assigns ecozones, calculates land area, and produces standardized spatial and tabular outputs for all qualifying urban CSDs.
-
-### **High-level responsibilities**
-- Load CSD boundaries (2021), list of eligible CSDUIDs, and national ecozone polygons.
-- Apply name-based rules and eligibility list to select urban municipalities.
-- Perform project-specific edits:
-  - Merge Black Diamond and Turner Valley into *Diamond Valley*.
-  - Merge Alberta and Saskatchewan parts of *Lloydminster*.
-  - Remove *Petit-Rocher* due to revised population density.
-- Assign each CSD to an ecozone using spatial intersection:
-  - Identify dominant ecozone when coverage ≥ 50.01%.
-  - Report any CSDs with no dominant ecozone.
-- Calculate land area (km²) using equal-area projection (EPSG:3347).
-- Generate optional QA reports and ecozone overlap maps for municipalities spanning multiple ecozones.
-- Save standardized urban boundaries, centroid points, and attribute tables to disk.
-
-### **Primary inputs**
-- `Datasets/Inputs/census_subdivisions_2021/census_subdivisions_2021.shp`
-- `Datasets/Inputs/eligible_csduid.csv`
-- `Datasets/Inputs/ecozone_shp/ecozones.shp`
-
-### **Primary outputs**
-- `Datasets/Outputs/urban_csds/urban_csds.shp` — Urban CSD polygons (Shapefile format)
-- `Datasets/Outputs/urban_csds/urban_csds.gpkg` — Urban CSD polygons (GPKG format)
-- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.shp` — Centroid points (Shapefile format)
-- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg` — Centroid points (GPKG format)
-- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv` — Tabular summary with CSDUID, name, land area, ecozone assignment, and dominance status
-
-### **Ecozone assignment logic**
-- Each CSD is intersected with all ecozones.
-- If only one ecozone intersects: assigned directly.
-- If multiple: coverage area is calculated for each, and the ecozone with ≥ 50.01% coverage is assigned as dominant.
-- CSDs with no dominant ecozone are flagged for manual review.
-
-### **Special handling**
-- Manual polygon merges for Diamond Valley and Lloydminster are performed using `unary_union` to create new geometries.
-- Amalgamated polygons inherit the CSDUID of one constituent part (typically the Alberta side or earlier ID).
-
-### **Optional QA**
-- Console summaries report:
-  - Name-based vs. ID-based matches
-  - Removed CSDs (e.g., Petit-Rocher)
-  - Multi-ecozone overlaps and assignment errors
-- Auto-generated maps visualize ecozone intersections for complex CSDs using Matplotlib and `contextily`.
-
-### **Notes**
-- All spatial operations are done using `geopandas` in a Lambert conformal conic CRS (EPSG:3347).
-- Attribute names in shapefiles are shortened for format compatibility.
-- This script provides the foundation for all subsequent spatial and statistical analyses in the project.
 
 
 ## `roads.py`
@@ -218,29 +167,19 @@ The script is designed to flexibly use one of the following spatial datasets as 
 - Binary canopy raster (`green`)
 - Input geometry layers: full vs. current batch (`blue` and `red`)
 
-## `census_of_population.py`
+## `urban_csds.py`
 
-`census_of_population.py` prepares demographic attributes for all urban municipalities used in the Canadian Urban Forest Census. It integrates key Census 2021 indicators (population, labour force, Indigenous identity, visible minorities), applies municipal amalgamations, filters for urban and non-Indigenous communities, and produces a single tabular output for analysis.
-
-This script is intended to support future demographic and equity-based extensions to urban forest research. It runs independently of the core geospatial pipeline.
+`urban_csds.py` identifies and processes eligible urban Census Subdivisions (CSDs) across Canada by applying population and density thresholds, handling municipal amalgamations, assigning ecozones, and generating spatial outputs and regional maps. It consolidates demographic data from the 2021 Census of Population with spatial boundaries and ecological classifications to create a comprehensive dataset of urban municipalities.
 
 ### **High-level responsibilities**
-- Load and merge four Census 2021 demographic files:
-  - `population.csv`
-  - `labour.csv`
-  - `indigenous_identity.csv`
-  - `visible_minorities.csv`
-- Drop redundant columns and merge all dataframes on `CSDUID`.
-- Apply amalgamations using `amalgamated_cities.csv`:
-  - Drop disaggregated CSDs
-  - Add merged records with harmonized structure
-  - Validate CSDUID uniqueness after concatenation
-- Filter dataset to include only urban, non-Indigenous municipalities:
-  - `Population ≥ 1,000`
-  - `Density ≥ 400 persons/km²`
-  - Exclude any CSDs with names matching `"PETIT-ROCHER"`, `"WENDAKE"`, or containing digits
-- Validate that amalgamated cities are retained in the final output.
-- Save filtered dataset to a single CSV for use in downstream analysis.
+- Load and merge demographic datasets from the 2021 Census of Population (population, labour, Indigenous identity, visible minorities).
+- Filter CSDs to retain only urban municipalities (≥1,000 population and ≥400 people/km²).
+- Exclude Indigenous reserves and non-standard CSDs based on naming patterns.
+- Handle amalgamated cities by merging geometries and replacing original entries (e.g., Lloydminster, Diamond Valley).
+- Assign each urban CSD to a dominant ecozone based on spatial intersection and area coverage.
+- Calculate ecozone coverage percentages and flag CSDs without a dominant zone (< 50.01% coverage).
+- Generate national and regional maps showing eligible CSDs and ecozone boundaries.
+- Export spatial outputs in multiple formats (Shapefile, GeoPackage) with both full polygons and centroids.
 
 ### **Primary inputs**
 - `Datasets/Inputs/2021_census_of_population/population.csv`
@@ -248,16 +187,62 @@ This script is intended to support future demographic and equity-based extension
 - `Datasets/Inputs/2021_census_of_population/indigenous_identity.csv`
 - `Datasets/Inputs/2021_census_of_population/visible_minorities.csv`
 - `Datasets/Inputs/2021_census_of_population/amalgamated_cities.csv`
+- `Datasets/Inputs/census_subdivisions_2021/census_subdivisions_2021.shp`
+- `Datasets/Inputs/ecozone_shp/ecozones.shp`
+- `Datasets/Inputs/provinces/provinces_simplified_1km.gpkg`
 
-### **Primary output**
-- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv`
+### **Primary outputs**
+- `Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv` — Filtered demographic data for urban CSDs
+- `Datasets/Outputs/urban_csds/urban_csds.shp` — Urban CSD polygons (Shapefile format)
+- `Datasets/Outputs/urban_csds/urban_csds.gpkg` — Urban CSD polygons (GeoPackage format)
+- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.shp` — Urban CSD centroids (Shapefile format)
+- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg` — Urban CSD centroids (GeoPackage format)
+- `Datasets/Outputs/urban_csds/urban_csds_attributes.csv` — Attribute table with ecozone assignments
+- `figures/eligible_csds/eligible_csds_nationally.pdf` — National map of eligible CSDs with ecozones
+- `figures/eligible_csds/eligible_csds_[region].pdf` — Regional maps for British Columbia, Prairies, Ontario, Québec, and Atlantic Canada
 
-This output contains only urban, non-Indigenous municipalities and is suitable for merging with geospatial outputs or independent regression modeling.
+### **Features**
+- **Urban criteria**: Filters for population ≥1,000 and density ≥400 people/km²
+- **Indigenous exclusion**: Removes CSDs with numeric characters in names (reserves) plus specific exclusions (PETIT-ROCHER, WENDAKE)
+- **Amalgamation handling**: Merges geometries for Lloydminster (SK/AB border city) and Diamond Valley (Black Diamond + Turner Valley)
+- **Ecozone assignment logic**:
+  - Single ecozone intersection → direct assignment (100% coverage)
+  - Multiple ecozones → assigns dominant zone if ≥50.01% coverage
+  - Flags CSDs with no dominant ecozone as assignment errors
+- **Data type harmonization**: Ensures consistent dtypes between main dataset and amalgamated cities before concatenation
+- **Duplicate detection**: Validates no duplicate CSDUIDs exist after amalgamation
+- **Field name compatibility**: Shortens column names for Shapefile exports (10-character limit)
+- **Custom visualization**: Uses grouped ecozone color scheme with contextily basemaps for multi-ecozone CSDs
 
-### **Key notes**
-- Amalgamated municipalities are inserted with type and schema consistency.
-- Output rows are verified to be unique by `CSDUID`.
-- This script does not generate any spatial datasets — it is tabular only.
+### **Ecozone color scheme**
+Ecozones are organized into six groups with custom colors:
+- **Arctic**: Arctic Cordillera, Northern Arctic, Southern Arctic
+- **Subarctic**: Taiga Shield, Hudson Plain
+- **Forested**: MixedWood Plain, Boreal Shield, Boreal Plain, Taiga Cordillera, Taiga Plain, Boreal Cordillera
+- **Mountain**: Montane Cordillera
+- **Prairie**: Prairie
+- **Maritime**: Pacific Maritime, Atlantic Maritime
+
+### **Regional definitions**
+Maps are generated for five regions based on PRUID codes:
+- **British Columbia**: 59
+- **Prairies**: 48 (Alberta), 47 (Saskatchewan), 46 (Manitoba)
+- **Ontario**: 35
+- **Québec**: 24
+- **Atlantic Canada**: 10 (Newfoundland and Labrador), 11 (Prince Edward Island), 12 (Nova Scotia), 13 (New Brunswick)
+
+### **QA checks and reporting**
+- Reports total CSDs before and after filtering
+- Lists CSDUIDs removed for amalgamation and rows added
+- Identifies and maps CSDs spanning multiple ecozones
+- Flags CSDs with no dominant ecozone (< 50% coverage by any single zone)
+- Prints summary tables showing ecozone assignments and coverage percentages
+
+### **Use cases**
+- Identifying eligible municipalities for urban forest analysis
+- Linking demographic characteristics with ecological regions
+- Producing cartographic outputs for reports and publications
+- Providing base spatial layers for canopy cover analysis pipelines
 
 ## `dataset_merge.py`
 
@@ -302,52 +287,3 @@ This output contains only urban, non-Indigenous municipalities and is suitable f
 - Equity assessments of green infrastructure
 - Geospatial correlation analyses
 - Dashboard or report-ready data publishing
-
-## `mapping.py`
-
-`mapping.py` creates a set of **national and regional participation maps** for the Canadian Urban Forest Census. These maps show which municipalities are participating in the survey, overlaid on ecozones and provincial boundaries. The script uses predefined CSDUIDs to identify participating communities and generates publication-quality maps in PDF format.
-
-### **High-level responsibilities**
-- Load input geospatial data:
-  - Urban municipality centroids (`urban_csd_centroids.gpkg`)
-  - Simplified province boundaries
-  - National ecozone layer
-- Standardize and align coordinate reference systems (CRS) across datasets.
-- Identify participating municipalities from a hardcoded list of CSDUIDs.
-- Classify municipalities as:
-  - **Participating** (red points)
-  - **Eligible but not participating** (black points)
-- Color and group ecozones by region for improved map readability.
-- Create and export:
-  - A **national map** with ecozones and participation status
-  - Five **regional maps**:
-    - British Columbia
-    - Prairies
-    - Ontario
-    - Québec
-    - Atlantic Canada
-
-### **Legend structure**
-- Grouped ecozones (e.g., "Forested", "Prairie", "Maritime") with distinct colors
-- Municipality participation status (Eligible / Participating)
-
-### **Primary inputs**
-- `Datasets/Inputs/provinces/provinces_simplified_1km.gpkg`
-- `Datasets/Inputs/ecozone_shp/ecozones.shp`
-- `Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg`
-
-### **Primary outputs**
-- `Figures/Survey participation - national.pdf`
-- `Figures/Survey participation - [region].pdf` for each defined region
-
-### **Features**
-- Automatically detects and fixes naming mismatches (e.g., `"Boreal PLain"` → `"Boreal Plain"`).
-- Handles coordinate reprojection and geometry clipping to provincial boundaries.
-- Produces print-quality figures using `matplotlib` and `geopandas`, with styled legends and layouts.
-- Legends are dynamically built to only include ecozones present in each region.
-- Prints diagnostic summaries for matched CSDUIDs and potential mismatches.
-
-### **Use cases**
-- Visual summary of municipal participation across Canada
-- Supporting figures for reports, presentations, or publications
-- QA verification of geographic coverage in survey efforts
