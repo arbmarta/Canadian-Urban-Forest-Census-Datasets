@@ -109,26 +109,50 @@ Urban polygons, centroids, and urban attribute tables used across the project.
 Clipped roads, buffered roads, dissolved road buffers, and per-CSD road-length summaries.
 
 ## `canopy_metrics.js`
-`canopy_metrics.js` (Google Earth Engine script) calculates canopy coverage metrics for spatial units derived from this project. The script is flexible and can use **either the final `urban_csds` polygons** or the **`road_buffers` polygons** as its input layer. When run on `urban_csds`, the script computes canopy statistics for entire municipal areas. When run on `road_buffers`, it instead analyzes canopy coverage within road-adjacent buffer zones. The choice of input directly influences the resulting area values and canopy percentages.
 
-**High-level responsibilities:**
-- Load the selected input layer (`urban_csds` or `road_buffers`) from Google Earth Engine assets.  
-- Load and mosaic the Meta 1-m Canopy Height Model (`CanopyHeight`) dataset.  
-- Create a binary canopy mask where vegetation ≥ 2 m is classified as canopy.  
-- For each spatial unit (CSD polygon or buffer polygon), compute:  
-  - Total area (km²),  
-  - Total canopy area (km²),  
-  - Canopy proportion (%) based on 1-m pixel area.  
-- Append canopy metrics as new attributes to each feature.  
-- Display optional QA layers (canopy mask, polygons).  
-- Export a table of canopy metrics (`ID`, `total_area_km2`, `canopy_area_km2`, `canopy_proportion`) as a CSV to Google Drive.
+`canopy_metrics.js` is a **Google Earth Engine (GEE)** script that calculates **canopy coverage metrics** for urban areas or road-buffer zones. It processes input geometries in batches to compute total area, canopy area (≥ 2 m), and canopy proportion for each unit.
 
-**Primary inputs:**  
-- **Option 1:** `projects/heroic-glyph-383701/assets/urban_csds`  
-  *(computes canopy metrics for entire urban municipalities)*  
-- **Option 2:** `projects/heroic-glyph-383701/assets/road_buffers`  
-  *(computes canopy metrics within 20-m dissolved road buffer zones)*  
-- Canopy height model: `projects/meta-forest-monitoring-okw37/assets/CanopyHeight`
+The script is designed to flexibly use one of the following spatial datasets as input:
+- `urban_csds` — for full municipal areas
+- `road_buffers_10m` — for 10-metre road buffer zones
+- `road_buffers_20m` — for 20-metre road buffer zones
 
-**Primary outputs:**  
-A FeatureCollection enriched with canopy attributes, and an exported CSV summarizing canopy area and canopy percentage for each polygon (CSD or buffer, depending on input).
+### **High-level responsibilities**
+- Load the selected spatial input layer (`road_buffers_10m`, `road_buffers_20m`, or `urban_csds`) from GEE assets.
+- Exclude any user-defined CSDUIDs (if applicable).
+- Load and mosaic the Meta 1-m Canopy Height Model.
+- Reproject all data to the **Statistics Canada Lambert projection (EPSG:3347)**.
+- Create a binary canopy mask (`1` if canopy height ≥ 2 m, else `0`).
+- Divide the input dataset into **batches** for scalable processing (e.g., 50 features per batch).
+- For each feature in the current batch:
+  - Compute total area and canopy area in square kilometers.
+  - Calculate the canopy proportion as a percentage.
+  - Append these metrics as new attributes.
+- Display QA layers and export each batch of results to CSV.
+
+### **Batching logic**
+- The script processes a subset of features per run, using a `batchNumber` and `batchSize` to control the range.
+- You must manually increment `batchNumber` for each export.
+
+### **Primary inputs**
+- One of:
+  - `projects/heroic-glyph-383701/assets/urban_csds`
+  - `projects/heroic-glyph-383701/assets/road_buffers_10m`
+  - `projects/heroic-glyph-383701/assets/road_buffers_20m`
+- Canopy height model:  
+  `projects/meta-forest-monitoring-okw37/assets/CanopyHeight`
+
+### **Primary outputs**
+- Exported CSV with columns:  
+  `CSDUID`, `total_area_km2`, `canopy_area_km2`, `canopy_proportion`
+- Filenames follow the format:  
+  `canopy_cover_road_buffer_batch_<batchNumber>.csv`
+
+### **Key variables in the script**
+- `excludeList`: Optional array of CSDUIDs to exclude  
+- `batchSize`: Number of features to process at once (e.g., 50)  
+- `batchNumber`: Current batch index (starting at 0)  
+
+### **Optional QA displays**
+- Binary canopy raster (`green`)
+- Input geometry layers: full vs. current batch (`blue` and `red`)
