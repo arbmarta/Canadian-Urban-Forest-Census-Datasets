@@ -10,6 +10,9 @@ print("Loading data...")
 roads = gpd.read_file('Datasets/Inputs/roads/roads.shp')
 csd = gpd.read_file('Datasets/Outputs/urban_csds/urban_csds.gpkg')
 
+# Ensure CSDUID is int64
+csd['CSDUID'] = csd['CSDUID'].astype('int64')
+
 print(f"Original roads: {len(roads)}")
 print(f"Roads CRS: {roads.crs}")
 print(f"CSD CRS: {csd.crs}")
@@ -102,19 +105,19 @@ else:
 print("\nCalculating road lengths by CSDUID...")
 
 # Calculate length in meters for each road segment
-clipped_roads_gdf['length_m'] = clipped_roads_gdf.geometry.length
+clipped_roads_gdf['road_length_m'] = clipped_roads_gdf.geometry.length
 
 # Sum lengths by CSDUID and convert to kilometers
-road_lengths = clipped_roads_gdf.groupby('CSDUID')['length_m'].sum().reset_index()
-road_lengths['length_km'] = road_lengths['length_m'] / 1000
-road_lengths = road_lengths[['CSDUID', 'length_km']]
+road_lengths = clipped_roads_gdf.groupby('CSDUID')['road_length_m'].sum().reset_index()
+road_lengths['road_length_km'] = road_lengths['road_length_m'] / 1000
+road_lengths = road_lengths[['CSDUID', 'road_length_km']]
 
 # Merge with CSD names for reference
 csd_names = csd[['CSDUID', 'CSDNAME']].copy()
 road_lengths = road_lengths.merge(csd_names, on='CSDUID', how='left')
 
 # Reorder columns
-road_lengths = road_lengths[['CSDUID', 'CSDNAME', 'length_km']]
+road_lengths = road_lengths[['CSDUID', 'CSDNAME', 'road_length_km']]
 
 # Save to CSV
 road_lengths_csv_path = 'Datasets/Outputs/roads/road_lengths_by_csd.csv'
@@ -124,13 +127,13 @@ print(f"Saved road lengths to: {road_lengths_csv_path}")
 # Print summary statistics
 print(f"\nRoad Length Summary:")
 print(f"Total CSDs with roads: {len(road_lengths)}")
-print(f"Mean road length: {road_lengths['length_km'].mean():.2f} km")
-print(f"Median road length: {road_lengths['length_km'].median():.2f} km")
-print(f"Min road length: {road_lengths['length_km'].min():.2f} km")
-print(f"Max road length: {road_lengths['length_km'].max():.2f} km")
+print(f"Mean road length: {road_lengths['road_length_km'].mean():.2f} km")
+print(f"Median road length: {road_lengths['road_length_km'].median():.2f} km")
+print(f"Min road length: {road_lengths['road_length_km'].min():.2f} km")
+print(f"Max road length: {road_lengths['road_length_km'].max():.2f} km")
 
 # Check for CSDs with less than 100 km of roads
-low_road_csds = road_lengths[road_lengths['length_km'] < 100]
+low_road_csds = road_lengths[road_lengths['road_length_km'] < 100]
 if len(low_road_csds) > 0:
     print(f"\n*** WARNING: {len(low_road_csds)} CSDs have less than 100 km of roads ***")
     print(low_road_csds.to_string(index=False))
@@ -201,7 +204,6 @@ else:
 
 # endregion
 
-
 # ------------------------------------------------- Dissolve Buffers --------------------------------------------------
 # region
 
@@ -216,13 +218,11 @@ print(road_buffers_dissolved[['CSDUID']].head())
 
 # endregion
 
-
 # ---------------------------------------------------- Save Output ----------------------------------------------------
 # region
 
 # Rename columns for shapefile compatibility
 road_buffers_shp = road_buffers_dissolved.copy()
-# CSDUID is already short enough (6 characters)
 
 # Save as GeoPackage (file inside buffer_dir)
 output_gpkg_path = os.path.join(buffer_dir, f'road_buffers_{BUFFER_DISTANCE_M}m.gpkg')
