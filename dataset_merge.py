@@ -17,12 +17,6 @@ canopy_roads_10m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_bu
 canopy_roads_20m = pd.read_csv('Datasets/Outputs/gee_export/canopy_cover_road_buffers_20m.csv')
 census = pd.read_csv('Datasets/Outputs/2021_census_of_population/2021_census_of_population_municipalities.csv')
 
-# Load spatial data
-provinces = gpd.read_file('Datasets/Inputs/provinces/provinces_simplified_1km.gpkg')
-csds = gpd.read_file('Datasets/Outputs/urban_csd_centroids/urban_csd_centroids.gpkg')
-ecozones = gpd.read_file('Datasets/Inputs/ecozone_shp/ecozones.shp')
-ecozones = ecozones.to_crs(provinces.crs)  # match ecozone CRS to provinces
-
 print("\n" + "=" * 70)
 print("IMPORTING DATASETS")
 print("=" * 70)
@@ -51,6 +45,13 @@ province_to_region = {
     46: "Prairies", 47: "Prairies", 48: "Prairies",
     59: "British Columbia"
 }
+province_to_subregion = {
+    10: "Atlantic Canada", 11: "Atlantic Canada", 12: "Atlantic Canada", 13: "Atlantic Canada",
+    24: "Québec",
+    35: "Ontario",
+    46: "Manitoba", 47: "Saskatchewan", 48: "Alberta",
+    59: "British Columbia"
+}
 
 # Create regions dictionary (region -> list of PRUIDs)
 regions = defaultdict(list)
@@ -58,35 +59,11 @@ for pruid, region_name in province_to_region.items():
     regions[region_name].append(pruid)
 regions = dict(regions)  # Convert back to regular dict
 
-ecozone_groups = {
-    'Arctic': {
-        'Arctic Cordillera': '#bac3e0',
-        'Northern Arctic': '#FAF9F6',
-        'Southern Arctic': '#e6f1ff',
-    },
-    'Subarctic': {
-        'Taiga Shield': '#ffe4c9',
-        'Hudson Plain': '#98d4ff',
-    },
-    'Forested': {
-        'MixedWood Plain': '#818c3c',
-        'Boreal Shield': '#25591f',
-        'Boreal Plain': '#487a67',
-        'Taiga Cordillera': '#a7bc30',
-        'Taiga Plain': '#b5d79f',
-        'Boreal Cordillera': '#147453',
-    },
-    'Mountain': {
-        'Montane Cordillera': '#969797',
-    },
-    'Prairie': {
-        'Prairie': '#b08962',
-    },
-    'Maritime': {
-        'Pacific Maritime': '#064273',
-        'Atlantic Maritime': '#1da2d8',
-    }
-}
+# Create subregions dictionary (subregions -> list of PRUIDs)
+subregions = defaultdict(list)
+for pruid, subregion_name in province_to_subregion.items():
+    subregions[subregion_name].append(pruid)
+subregions = dict(subregions)  # Convert back to regular dict
 
 # ---------- Add suffixes to canopy tables ----------
 # Add '_csd' to all canopy_csds columns except the join key CSDUID
@@ -114,23 +91,22 @@ census_clean = census.drop(columns=['CSDNAME'])  # Avoid duplicate CSDNAME
 csd_clean = csd.drop(columns=['area_km2'])  # Avoid redundant area measurement
 
 # Merge datasets
-merged = csd_clean.merge(roads, on='CSDUID', how='inner') \
+df = csd_clean.merge(roads, on='CSDUID', how='inner') \
     .merge(canopy_csds_renamed, on='CSDUID', how='inner') \
     .merge(canopy_roads_10m_renamed, on='CSDUID', how='inner') \
     .merge(canopy_roads_20m_renamed, on='CSDUID', how='inner') \
     .merge(census_clean, on='CSDUID', how='inner')
 
 print("\nMerged data info:")
-print("Rows:", len(merged))
-print("Columns:", merged.columns)
+print("Rows:", len(df))
+print("Columns:", df.columns)
 
 #endregion
-
 
 ## --------------------------------------------------- RENAME COLUMNS AND DROP REDUNDANCIES
 #region
 
-# --- 1) CSDNAME_y no longer exists (census CSDNAME was dropped before merge) ---
+# CSDNAME_y no longer exists (census CSDNAME was dropped before merge) ---
 # Just rename CSDNAME_x to CSDNAME (handled by rename_mapping)
 # The CSDNAME from roads dataset becomes CSDNAME_y, verify it matches
 if 'CSDNAME_y' in df.columns:
@@ -148,31 +124,25 @@ if 'CSDNAME_y' in df.columns:
 else:
     print("\nNote: CSDNAME_y does not exist in merged dataframe.")
 
-# --- 2) Filter rename_mapping to only include columns that exist ---
-existing_columns = set(df.columns)
-filtered_rename_mapping = {
-    old: new for old, new in rename_mapping.items()
-    if old in existing_columns
-}
+# Rename CSDNAME_x to CSDNAME
+df = df.rename(columns={'CSDNAME_x': 'CSDNAME'})
+print("CSDNAME_x renamed to CSDNAME.")
 
-print("\nColumns to be renamed:")
-for old, new in filtered_rename_mapping.items():
-    print(f"  {old} -> {new}")
-
-# Check for columns in df that won't be renamed
-unrenamed_cols = existing_columns - set(filtered_rename_mapping.keys())
-if unrenamed_cols:
-    print("\nWarning: These columns will keep their original names:")
-    for col in sorted(unrenamed_cols):
-        print(f"  {col}")
-
-# --- 3) Apply rename mapping ---
-df = df.rename(columns=filtered_rename_mapping)
-
-# --- 4) Drop redundant total_area_km2_csd column (redundant with census 'Land Area (sq km)') ---
+# Drop redundant total_area_km2_csd column (redundant with census 'Land Area (sq km)')
 if 'total_area_km2_csd' in df.columns:
     df = df.drop(columns=['total_area_km2_csd'])
     print("\ntotal_area_km2_csd dropped (redundant with census 'Land Area (sq km)').")
+
+# Extract PRUID from CSDUID (first 2 digits)
+df['PRUID'] = df['CSDUID'].astype(str).str[:2].astype(int)
+
+# Add Region and Subregion columns using the dictionaries
+df['Region'] = df['PRUID'].map(province_to_region)
+df['Subregion'] = df['PRUID'].map(province_to_subregion)
+
+print("\nRegion and Subregion columns added based on PRUID.")
+print(f"Regions: {df['Region'].unique().tolist()}")
+print(f"Subregions: {df['Subregion'].unique().tolist()}")
 
 print("\nFinal columns after renaming:")
 print(df.columns.tolist())
@@ -183,3 +153,21 @@ print("\nMerged data saved to 'Datasets/Outputs/Canadian_urban_forest_census_ind
 
 #endregion
 
+## --------------------------------------------------- FINAL ROW COUNT CHECK ---------------------------------------------------
+
+print("\n" + "=" * 70)
+print("FINAL DATA CHECK")
+print("=" * 70)
+
+final_row_count = len(df)
+expected_row_count = 343
+
+if final_row_count == expected_row_count:
+    print(f"\n✅ SUCCESS: Final dataset has {final_row_count} rows (expected {expected_row_count})")
+else:
+    print(f"\n⚠️  WARNING: Final dataset has {final_row_count} rows (expected {expected_row_count})")
+    print(f"   Difference: {final_row_count - expected_row_count} rows")
+    if final_row_count < expected_row_count:
+        print(f"   {expected_row_count - final_row_count} CSDs are missing from the final dataset!")
+
+print("\n" + "=" * 70)

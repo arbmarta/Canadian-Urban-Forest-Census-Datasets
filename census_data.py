@@ -4,6 +4,9 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import contextily as ctx
+import rasterio
+import exactextract
 
 ## ------------------------------------------------ LOAD AND CLEAN DATA ------------------------------------------------
 #region
@@ -286,6 +289,272 @@ else:
 
 #endregion
 
+## ------------------------------------------------ IDENTIFY EAB AREAS -------------------------------------------------
+#region
+
+# Import spatial data
+eab_area = gpd.read_file('Datasets/Inputs/eab_area/eab_areas.shp')
+
+# Ensure eab_area has valid geometries and a CRS
+eab_area = eab_area.dropna(subset=['geometry']).copy()
+if eab_area.crs is None:
+    raise ValueError("eab_area layer has no CRS — please set the CRS before proceeding.")
+
+# Reproject eab_area to the same CRS as csd_urban
+eab_area = eab_area.to_crs(csd_urban.crs)
+
+# Create centroids from csd_urban geometries
+csd_centroids = csd_urban.copy()
+csd_centroids['geometry'] = csd_centroids.geometry.centroid
+
+# Check if each centroid is within any EAB area polygon
+csd_centroids['in_eab_area'] = csd_centroids.geometry.apply(
+    lambda point: 'Yes' if any(eab_area.geometry.contains(point)) else 'No'
+)
+
+# Merge the EAB assignment back to csd_urban
+csd_urban = csd_urban.merge(
+    csd_centroids[['CSDUID', 'in_eab_area']],
+    on='CSDUID',
+    how='left'
+)
+
+# Report results
+eab_count = (csd_urban['in_eab_area'] == 'Yes').sum()
+total_count = len(csd_urban)
+print(f"\nEAB Area Assignment:")
+print(f"  CSDs within EAB area: {eab_count}")
+print(f"  CSDs outside EAB area: {total_count - eab_count}")
+print(f"  Total CSDs: {total_count}")
+
+# Show some examples
+print("\nSample assignments:")
+print(csd_urban[['CSDUID', 'CSDNAME', 'province', 'in_eab_area']].head(10).to_string(index=False))
+
+#endregion
+
+## -------------------------- AVERAGE ANNUAL PRECIPITATION AND DEGREE GROWING DAYS (Base 10) ---------------------------
+# region
+
+# File paths for raster data
+precip_path = 'Datasets/Inputs/climate/average_annual_precip_mm_1991_2020.tif'
+degree_days_path = 'Datasets/Inputs/climate/average_annual_degree_growing_days_b10_1991_2020.tif'
+
+print("\n" + "=" * 70)
+print("EXTRACTING CLIMATE DATA FROM RASTERS")
+print("=" * 70)
+
+# Check raster CRS and resolution
+with rasterio.open(precip_path) as src:
+    raster_crs = src.crs
+    raster_res = src.res
+    raster_bounds = src.bounds
+
+    print(f"\nRaster CRS: {raster_crs}")
+    print(f"Raster resolution: {raster_res[0]:.8f}° × {raster_res[1]:.8f}°")
+
+    # Calculate pixel area correctly for geographic CRS
+    if raster_crs.is_geographic:
+        # Calculate actual pixel size at raster center latitude
+        from pyproj import Transformer
+
+        center_lat = (raster_bounds.bottom + raster_bounds.top) / 2
+        center_lon = (raster_bounds.left + raster_bounds.right) / 2
+
+        # Transform corners of one pixel to meters
+        transformer = Transformer.from_crs(raster_crs, "EPSG:3857", always_xy=True)
+
+        pixel_corners = [
+            (center_lon, center_lat),  # Bottom-left
+            (center_lon + raster_res[0], center_lat),  # Bottom-right
+            (center_lon, center_lat + abs(raster_res[1]))  # Top-left
+        ]
+
+        corners_meters = [transformer.transform(lon, lat) for lon, lat in pixel_corners]
+
+        # Calculate dimensions in km
+        pixel_width_km = (corners_meters[1][0] - corners_meters[0][0]) / 1000
+        pixel_height_km = (corners_meters[2][1] - corners_meters[0][1]) / 1000
+        pixel_area_km2 = pixel_width_km * pixel_height_km
+
+        print(f"Raster pixel size: ~{pixel_width_km:.1f} km × {pixel_height_km:.1f} km (at {center_lat:.0f}°N)")
+        print(f"Raster pixel area: ~{pixel_area_km2:.1f} km²")
+    else:
+        # Projected CRS - resolution is already in meters
+        pixel_width_km = abs(raster_res[0]) / 1000
+        pixel_height_km = abs(raster_res[1]) / 1000
+        pixel_area_km2 = pixel_width_km * pixel_height_km
+        print(f"Raster pixel size: {pixel_width_km:.1f} km × {pixel_height_km:.1f} km")
+        print(f"Raster pixel area: {pixel_area_km2:.1f} km²")
+
+    print(f"CSD CRS: {csd_urban.crs}")
+
+# Reproject csd_urban to match raster CRS if needed
+if csd_urban.crs != raster_crs:
+    print(f"\nReprojecting CSDs from {csd_urban.crs} to {raster_crs}...")
+    csd_urban_reprojected = csd_urban.to_crs(raster_crs)
+else:
+    csd_urban_reprojected = csd_urban.copy()
+
+# Ensure CSDUID is a column (not just index) in the reprojected data
+if 'CSDUID' not in csd_urban_reprojected.columns:
+    csd_urban_reprojected = csd_urban_reprojected.reset_index()
+
+# Extract precipitation with area-weighted mean
+print("\n🔍 Extracting precipitation data (area-weighted method)...")
+precip_results = exactextract.exact_extract(
+    precip_path,
+    csd_urban_reprojected,
+    ['mean', 'count'],
+    include_cols=['CSDUID'],
+    include_geom=False
+)
+
+# Extract degree growing days with area-weighted mean
+print("🔍 Extracting degree growing days data (area-weighted method)...")
+degree_days_results = exactextract.exact_extract(
+    degree_days_path,
+    csd_urban_reprojected,
+    ['mean', 'count'],
+    include_cols=['CSDUID'],
+    include_geom=False
+)
+
+# Convert results from GeoJSON format to DataFrame
+print("\n🔧 Processing results...")
+
+
+def extract_properties(results_list):
+    """Extract properties from GeoJSON-like format returned by exactextract"""
+    if isinstance(results_list, list) and len(results_list) > 0:
+        if isinstance(results_list[0], dict) and 'properties' in results_list[0]:
+            # GeoJSON format - extract properties
+            return pd.DataFrame([item['properties'] for item in results_list])
+        else:
+            # Already in correct format
+            return pd.DataFrame(results_list)
+    return pd.DataFrame(results_list)
+
+
+precip_results_df = extract_properties(precip_results)
+degree_days_results_df = extract_properties(degree_days_results)
+
+# Verify CSDUID is present
+if 'CSDUID' not in precip_results_df.columns:
+    print("\n❌ ERROR: CSDUID not in results even after extraction!")
+    print("Available columns:", precip_results_df.columns.tolist())
+    raise ValueError("CSDUID column missing from exactextract results")
+
+# Rename columns for clarity
+precip_results_df = precip_results_df.rename(columns={
+    'mean': 'avg_annual_precip_mm',
+    'count': 'precip_pixel_count'
+})
+
+degree_days_results_df = degree_days_results_df.rename(columns={
+    'mean': 'avg_annual_degree_days_b10',
+    'count': 'degree_days_pixel_count'
+})
+
+# Merge results back to csd_urban
+print("\n🔗 Merging climate data to CSD dataset...")
+csd_urban = csd_urban.merge(precip_results_df, on='CSDUID', how='left')
+csd_urban = csd_urban.merge(degree_days_results_df, on='CSDUID', how='left')
+
+# Report results
+print("\n" + "=" * 70)
+print("CLIMATE DATA EXTRACTION SUMMARY")
+print("=" * 70)
+
+print(f"\n📊 Precipitation statistics:")
+print(f"  CSDs with data: {csd_urban['avg_annual_precip_mm'].notna().sum()} / {len(csd_urban)}")
+print(f"  Mean precipitation: {csd_urban['avg_annual_precip_mm'].mean():.1f} mm")
+print(f"  Range: {csd_urban['avg_annual_precip_mm'].min():.1f} - {csd_urban['avg_annual_precip_mm'].max():.1f} mm")
+
+print(f"\n📊 Degree growing days statistics:")
+print(f"  CSDs with data: {csd_urban['avg_annual_degree_days_b10'].notna().sum()} / {len(csd_urban)}")
+print(f"  Mean degree days: {csd_urban['avg_annual_degree_days_b10'].mean():.1f}")
+print(
+    f"  Range: {csd_urban['avg_annual_degree_days_b10'].min():.1f} - {csd_urban['avg_annual_degree_days_b10'].max():.1f}")
+
+# Analyze pixel coverage
+print(f"\n⚠️  PIXEL COVERAGE ANALYSIS:")
+print(f"  Pixel size: ~{pixel_width_km:.1f} km (E-W) × ~{pixel_height_km:.1f} km (N-S)")
+print(f"  Pixel area: ~{pixel_area_km2:.1f} km² per pixel")
+print(f"\n  Distribution of pixel counts per CSD:")
+
+pixel_bins = [
+    (1, 1, "1 pixel only"),
+    (2, 2, "2 pixels"),
+    (3, 3, "3 pixels"),
+    (4, 5, "4-5 pixels"),
+    (6, 9, "6-9 pixels"),
+    (10, 20, "10-20 pixels"),
+    (21, 999, "20+ pixels")
+]
+
+for min_px, max_px, label in pixel_bins:
+    count = ((csd_urban['precip_pixel_count'] >= min_px) &
+             (csd_urban['precip_pixel_count'] <= max_px)).sum()
+    pct = (count / len(csd_urban)) * 100
+    print(f"    {label:15s}: {count:3d} CSDs ({pct:5.1f}%)")
+
+# Calculate median pixel count
+median_pixels = csd_urban['precip_pixel_count'].median()
+print(f"\n  Median pixels per CSD: {median_pixels:.1f}")
+
+# Flag CSDs with very low pixel counts
+low_coverage = csd_urban[csd_urban['precip_pixel_count'] <= 5].copy()
+if len(low_coverage) > 0:
+    print(f"\n⚠️  DATA QUALITY WARNING:")
+    print(f"  {len(low_coverage)} CSDs ({len(low_coverage) / len(csd_urban) * 100:.1f}%) are covered by ≤5 pixels")
+    print(f"  These CSDs have limited spatial resolution for climate estimation")
+    print(f"\n  Examples of low-coverage CSDs:")
+    low_coverage_sample = low_coverage.nsmallest(10, 'area_km2')[
+        ['CSDUID', 'CSDNAME', 'area_km2', 'precip_pixel_count',
+         'avg_annual_precip_mm', 'avg_annual_degree_days_b10']
+    ]
+    print(low_coverage_sample.to_string(index=False))
+
+# Add data quality flag
+csd_urban['climate_data_quality'] = 'Good'
+csd_urban.loc[csd_urban['precip_pixel_count'] <= 5, 'climate_data_quality'] = 'Low (≤5 pixels)'
+csd_urban.loc[csd_urban['precip_pixel_count'] <= 2, 'climate_data_quality'] = 'Very Low (≤2 pixels)'
+
+quality_counts = csd_urban['climate_data_quality'].value_counts()
+print(f"\n📋 Climate Data Quality Flags:")
+for quality, count in quality_counts.items():
+    print(f"  {quality:25s}: {count:3d} CSDs")
+
+# Show sample of results
+print("\n📝 Sample climate data (first 10 CSDs sorted by area):")
+sample_cols = ['CSDUID', 'CSDNAME', 'area_km2', 'precip_pixel_count',
+               'avg_annual_precip_mm', 'avg_annual_degree_days_b10',
+               'climate_data_quality']
+print(csd_urban.nlargest(10, 'area_km2')[sample_cols].to_string(index=False))
+
+# Check for completely missing data
+missing_precip = csd_urban[csd_urban['avg_annual_precip_mm'].isna()]
+missing_degree_days = csd_urban[csd_urban['avg_annual_degree_days_b10'].isna()]
+
+if len(missing_precip) > 0:
+    print(f"\n❌ ERROR: {len(missing_precip)} CSDs missing precipitation data:")
+    print(missing_precip[['CSDUID', 'CSDNAME', 'province', 'area_km2']].to_string(index=False))
+else:
+    print(f"\n✅ All CSDs have precipitation data")
+
+if len(missing_degree_days) > 0:
+    print(f"\n❌ ERROR: {len(missing_degree_days)} CSDs missing degree days data:")
+    print(missing_degree_days[['CSDUID', 'CSDNAME', 'province', 'area_km2']].to_string(index=False))
+else:
+    print(f"\n✅ All CSDs have degree growing days data")
+
+print("\n" + "=" * 70)
+print("✅ CLIMATE DATA EXTRACTION COMPLETE")
+print("=" * 70)
+
+# endregion
+
 ## --------------------------------------------------- SAVE OUTPUTS ----------------------------------------------------
 #region
 
@@ -301,7 +570,10 @@ csd_urban_shp = csd_urban_shp.rename(columns={
     'all_ecozone': 'all_eco',
     'dominant_ecozone': 'dom_eco',
     'coverage_pct': 'cover_pct',
-    'assignment_error': 'assign_err'
+    'assignment_error': 'assign_err',
+    'avg_annual_precip_mm': 'precip_mm',
+    'avg_annual_degree_days_b10': 'deg_day10',
+    'in_eab_area': 'eab_area'
 })
 
 # Save polygons (both formats)
@@ -327,13 +599,18 @@ centroids_gpkg.to_file(centroid_gpkg_path, driver="GPKG")
 print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 
 # Save attribute table as CSV (with full column names)
-csv_data = csd_urban[['CSDUID', 'CSDNAME', 'PRUID', 'province', 'area_km2', 'assigned_ecozone', 'dominant_ecozone',
-                      'coverage_pct']].copy()
+csv_data = csd_urban[['CSDUID', 'CSDNAME', 'PRUID', 'province', 'area_km2',
+                      'assigned_ecozone', 'dominant_ecozone', 'coverage_pct',
+                      'in_eab_area', 'avg_annual_precip_mm',
+                      'avg_annual_degree_days_b10']].copy()
 csv_path = 'Datasets/Outputs/urban_csds/urban_csds_attributes.csv'
 csv_data.to_csv(csv_path, index=False)
 print(f"Saved attribute table to: {csv_path}")
 
 #endregion
+
+## ----------------------------------------- MAP CSDs WITHIN MULTIPLE ECOZONES -----------------------------------------
+#region
 
 # Define ecozone colours organized by groups
 ecozone_groups = {
@@ -365,10 +642,6 @@ ecozone_groups = {
         'Atlantic Maritime': '#1da2d8',
     }
 }
-
-"""
-## ----------------------------------------- MAP CSDs WITHIN MULTIPLE ECOZONES -----------------------------------------
-#region
 
 # Flatten the dictionary for plotting
 ecozone_colours = {zone: color for group in ecozone_groups.values() for zone, color in group.items()}
@@ -452,7 +725,6 @@ else:
     print("\nNo CSDs span multiple ecozone - no maps to generate.\n")
 
 #endregion
-"""
 
 ## ----------------------------------------- MAP THE URBAN CSDs WITH ECOZONES ------------------------------------------
 #region
