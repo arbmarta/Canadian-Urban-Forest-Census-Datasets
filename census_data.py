@@ -12,20 +12,21 @@ import exactextract
 #region
 
 # load datasets
-population = pd.read_csv('Datasets/Inputs/2021_census_of_population/population.csv')
-labour = pd.read_csv('Datasets/Inputs/2021_census_of_population/labour.csv')
-indigenous_identity = pd.read_csv('Datasets/Inputs/2021_census_of_population/indigenous_identity.csv')
-visible_minorities = pd.read_csv('Datasets/Inputs/2021_census_of_population/visible_minorities.csv')
+population = pd.read_csv('Datasets/Inputs/2021_census_of_population/population.csv', dtype={'CSDUID': str})
+labour = pd.read_csv('Datasets/Inputs/2021_census_of_population/labour.csv', dtype={'CSDUID': str})
+indigenous_identity = pd.read_csv('Datasets/Inputs/2021_census_of_population/indigenous_identity.csv', dtype={'CSDUID': str})
+visible_minorities = pd.read_csv('Datasets/Inputs/2021_census_of_population/visible_minorities.csv', dtype={'CSDUID': str})
+household_income = pd.read_csv('Datasets/Inputs/2021_census_of_population/household_income.csv', dtype={'CSDUID': str})
 
-amalgamated_csds = pd.read_csv('Datasets/Inputs/2021_census_of_population/amalgamated_cities.csv')
+amalgamated_csds = pd.read_csv('Datasets/Inputs/2021_census_of_population/amalgamated_cities.csv', dtype={'CSDUID': str})
 
 # Drop CSDNAME from all datasets except population
-for dataset in [labour, indigenous_identity, visible_minorities]:
+for dataset in [labour, indigenous_identity, visible_minorities, household_income]:
     dataset.drop(columns=['CSDNAME'], errors='ignore', inplace=True)
 
 # Merge all dataframes
 df = reduce(lambda left, right: left.merge(right, on='CSDUID', how='outer'),
-            [population, labour, indigenous_identity, visible_minorities])
+            [population, labour, indigenous_identity, visible_minorities, household_income])
 
 print("Columns in merged dataset:")
 for col in df.columns:
@@ -62,7 +63,7 @@ amalgamated_csds['CSDUID'] = amalgamated_csds['CSDUID'].astype(str).str.strip()
 # ---------- HARMONIZE DTYPES ----------
 # Convert integer columns (counts)
 int_cols = ['Population, 2021', 'Total private dwellings',
-            'Private dwellings occupied by usual residents']
+            'Private dwellings occupied by usual residents', 'Aggregate after-tax income of households']
 for col in int_cols:
     if col in amalgamated_csds.columns:
         amalgamated_csds[col] = amalgamated_csds[col].astype('int64')
@@ -303,6 +304,20 @@ if eab_area.crs is None:
 # Reproject eab_area to the same CRS as csd_urban
 eab_area = eab_area.to_crs(csd_urban.crs)
 
+print("\nUnique values of date_regul and status_reg in eab_area:")
+print(f"EAB Area values in 'date_regul': {eab_area['date_regul'].unique()}  dtype: {eab_area['date_regul'].dtype}")
+print(f"EAB Area values in 'status_reg': {eab_area['status_reg'].unique()}  dtype: {eab_area['status_reg'].dtype}")
+
+# Select the eab regulated area of interest (comment in and out)
+#eab_area = eab_area[(eab_area['date_regul'] == '2025') & (eab_area['status_reg'] == 'Active')]
+eab_area = eab_area[(eab_area['date_regul'] == '2024') & (eab_area['status_reg'] == "Inactive")]
+
+print(
+    f"⚠️  Expected exactly one EAB area, but found {len(eab_area)}."
+    if len(eab_area) != 1
+    else "✅ EAB area count is valid (1)."
+)
+
 # Create centroids from csd_urban geometries
 csd_centroids = csd_urban.copy()
 csd_centroids['geometry'] = csd_centroids.geometry.centroid
@@ -333,11 +348,12 @@ print(csd_urban[['CSDUID', 'CSDNAME', 'province', 'in_eab_area']].head(10).to_st
 
 #endregion
 
-## -------------------------- AVERAGE ANNUAL PRECIPITATION AND DEGREE GROWING DAYS (Base 10) ---------------------------
+## -------------------- AVERAGE ANNUAL PRECIPITATION, FROST FREE, AND DEGREE GROWING DAYS (Base 10) --------------------
 # region
 
 # File paths for raster data
 precip_path = 'Datasets/Inputs/climate/average_annual_precip_mm_1991_2020.tif'
+frost_free_path = 'Datasets/Inputs/climate/average_annual_frost_free_days_1991_2020.tif'
 degree_days_path = 'Datasets/Inputs/climate/average_annual_degree_growing_days_b10_1991_2020.tif'
 
 print("\n" + "=" * 70)
@@ -410,6 +426,16 @@ precip_results = exactextract.exact_extract(
     include_geom=False
 )
 
+# Extract frost-free days with area-weighted mean
+print("🔍 Extracting frost-free days data (area-weighted method)...")
+frostfree_results = exactextract.exact_extract(
+    frost_free_path,
+    csd_urban_reprojected,
+    ['mean', 'count'],
+    include_cols=['CSDUID'],
+    include_geom=False
+)
+
 # Extract degree growing days with area-weighted mean
 print("🔍 Extracting degree growing days data (area-weighted method)...")
 degree_days_results = exactextract.exact_extract(
@@ -437,6 +463,7 @@ def extract_properties(results_list):
 
 
 precip_results_df = extract_properties(precip_results)
+frost_free_results_df = extract_properties(frostfree_results)
 degree_days_results_df = extract_properties(degree_days_results)
 
 # Verify CSDUID is present
@@ -451,6 +478,11 @@ precip_results_df = precip_results_df.rename(columns={
     'count': 'precip_pixel_count'
 })
 
+frost_free_results_df = frost_free_results_df.rename(columns={
+    'mean': 'avg_annual_frost_free_days',
+    'count': 'frostfree_pixel_count'
+})
+
 degree_days_results_df = degree_days_results_df.rename(columns={
     'mean': 'avg_annual_degree_days_b10',
     'count': 'degree_days_pixel_count'
@@ -459,6 +491,7 @@ degree_days_results_df = degree_days_results_df.rename(columns={
 # Merge results back to csd_urban
 print("\n🔗 Merging climate data to CSD dataset...")
 csd_urban = csd_urban.merge(precip_results_df, on='CSDUID', how='left')
+csd_urban = csd_urban.merge(frost_free_results_df, on='CSDUID', how='left')  # <- frost-free merged
 csd_urban = csd_urban.merge(degree_days_results_df, on='CSDUID', how='left')
 
 # Report results
@@ -471,6 +504,50 @@ print(f"  CSDs with data: {csd_urban['avg_annual_precip_mm'].notna().sum()} / {l
 print(f"  Mean precipitation: {csd_urban['avg_annual_precip_mm'].mean():.1f} mm")
 print(f"  Range: {csd_urban['avg_annual_precip_mm'].min():.1f} - {csd_urban['avg_annual_precip_mm'].max():.1f} mm")
 
+print(f"\n📊 Frost-free days statistics:")
+print(f"  CSDs with data: {csd_urban['avg_annual_frost_free_days'].notna().sum()} / {len(csd_urban)}")
+print(f"  Mean frost-free days: {csd_urban['avg_annual_frost_free_days'].mean():.1f} days")
+print(f"  Range: {csd_urban['avg_annual_frost_free_days'].min():.1f} - {csd_urban['avg_annual_frost_free_days'].max():.1f} days")
+
+# List CSDUIDs missing frost-free days data
+missing_frostfree = csd_urban[csd_urban['avg_annual_frost_free_days'].isna()]
+
+print(f"\n❌ CSDs missing frost-free days data: {len(missing_frostfree)}")
+
+if len(missing_frostfree) > 0:
+    print(
+        missing_frostfree[
+            ['CSDUID', 'CSDNAME', 'province']
+        ].sort_values('province')
+        .to_string(index=False)
+    )
+else:
+    print("✅ No CSDs missing frost-free days data")
+
+frost_free_override = {
+    '5917015': 213,  # Central Saanich, 48.5753° N, 123.4454° W, Victoria (Airport)
+    '5917021': 213,  # Saanich, 48.4528° N, 123.3755° W, Victoria (Airport)
+    '5917030': 213,  # Oak Bay, 48.4265° N, 123.3141° W,
+    '5917034': 213,  # Victoria
+    '5917040': 213,  # Esquimalt, 48.4358° N, 123.4112° W
+    '5917041': 213,  # Colwood, 48.4288° N, 123.4889° W
+    '5917047': 213,  # View Royal, 48.4528° N, 123.4348° W
+    '5919012': 213,  # Duncan, 48.7787° N, 123.7079° W
+    '5929005': 235,  # Gibsons, 49.3974° N, 123.5152° W
+}
+
+mask = csd_urban['avg_annual_frost_free_days'].isna()
+
+csd_urban.loc[mask, 'avg_annual_frost_free_days'] = (
+    csd_urban.loc[mask, 'CSDUID']
+    .map(frost_free_override)
+)
+
+# Flag these as imputed
+csd_urban.loc[mask, 'frost_free_source'] = 'Imputed (coastal override)'
+csd_urban.loc[~mask, 'frost_free_source'] = 'Raster'
+
+
 print(f"\n📊 Degree growing days statistics:")
 print(f"  CSDs with data: {csd_urban['avg_annual_degree_days_b10'].notna().sum()} / {len(csd_urban)}")
 print(f"  Mean degree days: {csd_urban['avg_annual_degree_days_b10'].mean():.1f}")
@@ -481,7 +558,7 @@ print(
 print(f"\n⚠️  PIXEL COVERAGE ANALYSIS:")
 print(f"  Pixel size: ~{pixel_width_km:.1f} km (E-W) × ~{pixel_height_km:.1f} km (N-S)")
 print(f"  Pixel area: ~{pixel_area_km2:.1f} km² per pixel")
-print(f"\n  Distribution of pixel counts per CSD:")
+print(f"\n  Distribution of pixel counts per CSD (based on precipitation pixel counts):")
 
 pixel_bins = [
     (1, 1, "1 pixel only"),
@@ -512,7 +589,7 @@ if len(low_coverage) > 0:
     print(f"\n  Examples of low-coverage CSDs:")
     low_coverage_sample = low_coverage.nsmallest(10, 'area_km2')[
         ['CSDUID', 'CSDNAME', 'area_km2', 'precip_pixel_count',
-         'avg_annual_precip_mm', 'avg_annual_degree_days_b10']
+         'frostfree_pixel_count', 'avg_annual_precip_mm', 'avg_annual_frost_free_days', 'avg_annual_degree_days_b10']
     ]
     print(low_coverage_sample.to_string(index=False))
 
@@ -528,13 +605,13 @@ for quality, count in quality_counts.items():
 
 # Show sample of results
 print("\n📝 Sample climate data (first 10 CSDs sorted by area):")
-sample_cols = ['CSDUID', 'CSDNAME', 'area_km2', 'precip_pixel_count',
-               'avg_annual_precip_mm', 'avg_annual_degree_days_b10',
-               'climate_data_quality']
+sample_cols = ['CSDUID', 'CSDNAME', 'area_km2', 'avg_annual_precip_mm', 'avg_annual_frost_free_days',
+               'avg_annual_degree_days_b10', 'climate_data_quality']
 print(csd_urban.nlargest(10, 'area_km2')[sample_cols].to_string(index=False))
 
 # Check for completely missing data
 missing_precip = csd_urban[csd_urban['avg_annual_precip_mm'].isna()]
+missing_frostfree = csd_urban[csd_urban['avg_annual_frost_free_days'].isna()]
 missing_degree_days = csd_urban[csd_urban['avg_annual_degree_days_b10'].isna()]
 
 if len(missing_precip) > 0:
@@ -542,6 +619,12 @@ if len(missing_precip) > 0:
     print(missing_precip[['CSDUID', 'CSDNAME', 'province', 'area_km2']].to_string(index=False))
 else:
     print(f"\n✅ All CSDs have precipitation data")
+
+if len(missing_frostfree) > 0:
+    print(f"\n❌ ERROR: {len(missing_frostfree)} CSDs missing frost-free days data:")
+    print(missing_frostfree[['CSDUID', 'CSDNAME', 'province', 'area_km2']].to_string(index=False))
+else:
+    print(f"\n✅ All CSDs have frost-free days data")
 
 if len(missing_degree_days) > 0:
     print(f"\n❌ ERROR: {len(missing_degree_days)} CSDs missing degree days data:")
@@ -573,6 +656,7 @@ csd_urban_shp = csd_urban_shp.rename(columns={
     'assignment_error': 'assign_err',
     'avg_annual_precip_mm': 'precip_mm',
     'avg_annual_degree_days_b10': 'deg_day10',
+    'avg_annual_frost_free_days': 'ff_days',
     'in_eab_area': 'eab_area'
 })
 
@@ -601,13 +685,15 @@ print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 # Save attribute table as CSV (with full column names)
 csv_data = csd_urban[['CSDUID', 'CSDNAME', 'PRUID', 'province', 'area_km2',
                       'assigned_ecozone', 'dominant_ecozone', 'coverage_pct',
-                      'in_eab_area', 'avg_annual_precip_mm',
+                      'in_eab_area', 'avg_annual_precip_mm', 'avg_annual_frost_free_days',
                       'avg_annual_degree_days_b10']].copy()
 csv_path = 'Datasets/Outputs/urban_csds/urban_csds_attributes.csv'
 csv_data.to_csv(csv_path, index=False)
 print(f"Saved attribute table to: {csv_path}")
 
 #endregion
+
+exit()
 
 ## ----------------------------------------- MAP CSDs WITHIN MULTIPLE ECOZONES -----------------------------------------
 #region
