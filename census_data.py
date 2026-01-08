@@ -309,42 +309,57 @@ print(f"EAB Area values in 'date_regul': {eab_area['date_regul'].unique()}  dtyp
 print(f"EAB Area values in 'status_reg': {eab_area['status_reg'].unique()}  dtype: {eab_area['status_reg'].dtype}")
 
 # Select the eab regulated area of interest (comment in and out)
-#eab_area = eab_area[(eab_area['date_regul'] == '2025') & (eab_area['status_reg'] == 'Active')]
-eab_area = eab_area[(eab_area['date_regul'] == '2024') & (eab_area['status_reg'] == "Inactive")]
-
-print(
-    f"⚠️  Expected exactly one EAB area, but found {len(eab_area)}."
-    if len(eab_area) != 1
-    else "✅ EAB area count is valid (1)."
-)
+eab_area_2025 = eab_area[(eab_area['date_regul'] == '2025') & (eab_area['status_reg'] == 'Active')]
+eab_area_2024 = eab_area[(eab_area['date_regul'] == '2024') & (eab_area['status_reg'] == "Inactive")]
 
 # Create centroids from csd_urban geometries
 csd_centroids = csd_urban.copy()
 csd_centroids['geometry'] = csd_centroids.geometry.centroid
 
 # Check if each centroid is within any EAB area polygon
-csd_centroids['in_eab_area'] = csd_centroids.geometry.apply(
-    lambda point: 'Yes' if any(eab_area.geometry.contains(point)) else 'No'
+csd_centroids['in_eab_area_2024'] = csd_centroids.geometry.apply(
+    lambda point: 'Yes' if any(eab_area_2024.geometry.contains(point)) else 'No'
+)
+csd_centroids['in_eab_area_2025'] = csd_centroids.geometry.apply(
+    lambda point: 'Yes' if any(eab_area_2025.geometry.contains(point)) else 'No'
 )
 
 # Merge the EAB assignment back to csd_urban
 csd_urban = csd_urban.merge(
-    csd_centroids[['CSDUID', 'in_eab_area']],
+    csd_centroids[['CSDUID', 'in_eab_area_2024']],
+    on='CSDUID',
+    how='left'
+)
+csd_urban = csd_urban.merge(
+    csd_centroids[['CSDUID', 'in_eab_area_2025']],
     on='CSDUID',
     how='left'
 )
 
 # Report results
-eab_count = (csd_urban['in_eab_area'] == 'Yes').sum()
+print('\n------- EAB Areas in 2024 -------')
+eab_count_2024 = (csd_urban['in_eab_area_2024'] == 'Yes').sum()
 total_count = len(csd_urban)
-print(f"\nEAB Area Assignment:")
-print(f"  CSDs within EAB area: {eab_count}")
-print(f"  CSDs outside EAB area: {total_count - eab_count}")
+print(f"EAB Area Assignment:")
+print(f"  CSDs within EAB area: {eab_count_2024}")
+print(f"  CSDs outside EAB area: {total_count - eab_count_2024}")
 print(f"  Total CSDs: {total_count}")
+
+print('\n------- EAB Areas in 2025 -------')
+eab_count_2025 = (csd_urban['in_eab_area_2025'] == 'Yes').sum()
+total_count = len(csd_urban)
+print(f"EAB Area Assignment:")
+print(f"  CSDs within EAB area: {eab_count_2025}")
+print(f"  CSDs outside EAB area: {total_count - eab_count_2025}")
+print(f"  Total CSDs: {total_count}")
+
+print(f"\nCSDs that became regulated for EAB (2024: No → 2025: Yes):"
+      f" {csd_urban.loc[(csd_urban['in_eab_area_2024'] == 'No') & (csd_urban['in_eab_area_2025'] == 'Yes'),
+      'CSDNAME'].tolist()}")
 
 # Show some examples
 print("\nSample assignments:")
-print(csd_urban[['CSDUID', 'CSDNAME', 'province', 'in_eab_area']].head(10).to_string(index=False))
+print(csd_urban[['CSDUID', 'CSDNAME', 'province', 'in_eab_area_2024', 'in_eab_area_2025']].head(10).to_string(index=False))
 
 #endregion
 
@@ -657,7 +672,8 @@ csd_urban_shp = csd_urban_shp.rename(columns={
     'avg_annual_precip_mm': 'precip_mm',
     'avg_annual_degree_days_b10': 'deg_day10',
     'avg_annual_frost_free_days': 'ff_days',
-    'in_eab_area': 'eab_area'
+    'in_eab_area_2024': 'eab_area_2024',
+    'in_eab_area_2025': 'eab_area_2025'
 })
 
 # Save polygons (both formats)
@@ -685,7 +701,7 @@ print(f"Saved centroids (geopackage) to: {centroid_gpkg_path}")
 # Save attribute table as CSV (with full column names)
 csv_data = csd_urban[['CSDUID', 'CSDNAME', 'PRUID', 'province', 'area_km2',
                       'assigned_ecozone', 'dominant_ecozone', 'coverage_pct',
-                      'in_eab_area', 'avg_annual_precip_mm', 'avg_annual_frost_free_days',
+                      'in_eab_area_2024', 'in_eab_area_2025', 'avg_annual_precip_mm', 'avg_annual_frost_free_days',
                       'avg_annual_degree_days_b10']].copy()
 csv_path = 'Datasets/Outputs/urban_csds/urban_csds_attributes.csv'
 csv_data.to_csv(csv_path, index=False)
